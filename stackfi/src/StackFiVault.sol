@@ -61,7 +61,7 @@ contract StackFiVault is Ownable , ReentrancyGuard{
     return (uint256(answer), _updatedAt, feed.decimals());
 }
 
-  function checkPriceFeed(address tokenAddress) external view returns (uint256 price, uint8 feedDecimals, uint256 updatedAt) {
+  function checkPriceFeed(address tokenAddress) external view returns (uint256 price, uint256 updatedAt, uint8 feedDecimals ) {
     (price, updatedAt, feedDecimals) = _readUsdPrice(tokenAddress);
   }
 
@@ -109,21 +109,53 @@ contract StackFiVault is Ownable , ReentrancyGuard{
     return p.active && block.timestamp >= p.nextRunAt;
   }
 
+
+function _applySlippage(uint256 amount, uint16 bps) internal pure returns (uint256) {
+    // 10000 bps = 100%
+    // 1 bps = 0.01% 
+    return amount * (10000 - bps) / 10000;
+}
+
+function _expectedOutFromOracles(address tokenIn, address tokenOut, uint256 amountIn)
+    internal
+    view
+    returns (uint256 expectedOut)
+{
+    (uint256 inPx,, uint8 inFeedDec)   = _readUsdPrice(tokenIn);   // e.g. USDC/USD 1e8
+    (uint256 outPx,, uint8 outFeedDec) = _readUsdPrice(tokenOut);  // e.g. ETH/USD 1e8
+
+    uint8 inTokDec  = assets[tokenIn].decimals;   // ERC20 decimals you stored
+    uint8 outTokDec = assets[tokenOut].decimals;
+
+    // Convert tokenIn -> USD (scale to 1e18 to preserve precision)
+    // USD_1e18 = amountIn * (inPx / 10^inFeedDec) * 10^(18 - inTokDec)
+    // AmountIn is always in token Native units (e.g., 100 USDC = 100_000000 with 6 decimals)
+    uint256 inUsd1e18 = amountIn
+        * inPx
+        * (10 ** (18 - inTokDec))
+        / (10 ** inFeedDec);
+
+    // Convert USD_1e18 -> tokenOut units
+    // expectedOut = USD_1e18 * 10^outTokDec / (outPx / 10^outFeedDec)
+    expectedOut = (inUsd1e18 * (10 ** outTokDec)) / (outPx * (10 ** (18 - outFeedDec)));
+}
+
+
   // --- execution (stub) ---
-  function execute(address user) external {
+  function execute(address user) external nonReentrant {
     DCAPlan storage p = plans[user];
     require(isDue(user), "not due");
     require(balances[user][p.tokenIn] >= p.amountPerBuy, "insufficient funds");
 
-    uint256 inAmount = p.amountPerBuy;
+    uint256 amountIn    = p.amountPerBuy;
+    uint256 expectedOut = _expectedOutFromOracles(p.tokenIn, p.tokenOut, amountIn);
+    uint256 minOut      = _applySlippage(expectedOut, p.slippageBps);
 
-    // TODO: read Chainlink: tokenIn/USD and tokenOut/USD
-    // TODO: compute expectedOut and minOut using slippageBps
-    // TODO: swap tokenIn -> tokenOut via router, honor minOut
-    uint256 outAmount = 0; // placeholder
+    // TODO: call DEX with minOut. For now, stub to expectedOut so you can test flow.
+    uint256 amountOut = minOut; // TEMP
 
-    balances[user][p.tokenIn] -= inAmount;
-    balances[user][p.tokenOut] += outAmount;
+    balances[user][p.tokenIn]  -= amountIn;
+    balances[user][p.tokenOut] += amountOut;
 
     p.nextRunAt = uint40(block.timestamp + p.frequency);
   }
