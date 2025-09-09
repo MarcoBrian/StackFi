@@ -7,7 +7,7 @@ deps/
 states/
 .deps/
 .states/
-
+lib/
 
 # Debug info
 *.dbg.json
