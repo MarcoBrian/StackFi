@@ -19,6 +19,7 @@ contract StackFiVault is Ownable , ReentrancyGuard{
   event Executed(address indexed user, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
 
   using SafeERC20 for IERC20;
+  
 
   struct AssetConfig {
     address token;
@@ -38,6 +39,11 @@ contract StackFiVault is Ownable , ReentrancyGuard{
     bool    active;
   }
 
+  ISwapRouter public uniV3Router;
+  
+  // Uniswap V3 fee tier (3000 = 0.3%) default fee tier
+  uint24 public constant defaultFee = 3000;
+
   mapping(address => AssetConfig) public assets;    // token => config
   mapping(address => mapping(address => uint256)) public balances; // user => token => amount
   mapping(address => DCAPlan) public plans;
@@ -45,6 +51,34 @@ contract StackFiVault is Ownable , ReentrancyGuard{
   constructor() Ownable(msg.sender) { 
 
   }
+
+
+function setRouter(address router) external onlyOwner {
+    uniV3Router = ISwapRouter(router);
+}
+
+
+
+function _swapUniV3(address tokenIn, address tokenOut, uint256 amountIn, uint256 minOut)
+    internal
+    returns (uint256 amountOut)
+{
+    // OZ v5 has forceApprove; on OZ v4 use safeApprove(0) then safeApprove(amountIn)
+    IERC20(tokenIn).forceApprove(address(uniV3Router), amountIn);
+
+    ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+        tokenIn: tokenIn,
+        tokenOut: tokenOut,
+        fee: defaultFee,
+        recipient: address(this),
+        deadline: block.timestamp,
+        amountIn: amountIn,
+        amountOutMinimum: minOut,
+        sqrtPriceLimitX96: 0
+    });
+
+    amountOut = uniV3Router.exactInputSingle(params);
+}
   
   function _readUsdPrice(address token)
     internal

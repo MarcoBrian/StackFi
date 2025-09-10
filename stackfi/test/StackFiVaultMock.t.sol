@@ -6,8 +6,10 @@ import "forge-std/Test.sol";
 import {StackFiVault} from "../src/StackFiVault.sol";
 import {MockERC20} from "../src/MockERC20.sol";
 import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator.sol";
+import {MockSwapRouter} from "./mocks/MockSwapRouter.sol"; 
 
-contract StackFiVaultTest is Test {
+
+contract StackFiVaultMockTest is Test {
     StackFiVault internal vault;
 
     MockERC20 internal usdc; // 6 decimals
@@ -123,6 +125,42 @@ contract StackFiVaultTest is Test {
         assertEq(decUsdc, 8, "USDC feed decimals");
         assertEq(priceEth, 3000e8, "ETH/USD price");
         assertEq(decEth, 8, "ETH feed decimals");
+    }
+
+    function test_Execute_WithMockRouter_PaysMinOut() public {
+        // 1) Deploy router + set on vault
+        MockSwapRouter router = new MockSwapRouter();
+        vault.setRouter(address(router));
+
+        // 2) Fund router with tokenOut so it can pay minOut
+        //    e.g., user DCA USDC -> WETH, so router must hold WETH
+        weth.mint(address(router), 1_000 ether);
+
+        // 3) User deposit & create plan
+        vm.startPrank(alice);
+        vault.deposit(address(usdc), 100e6); // 100 USDC
+        vault.createPlan(address(usdc), address(weth), uint128(100e6), 1 days, 50); // 0.5% slippage
+        vm.stopPrank();
+
+        // 4) Make due and execute
+        vm.warp(block.timestamp + 1 days + 1);
+        usdcUsdFeed.updateAnswer(1e8);
+        ethUsdFeed.updateAnswer(2000e8);
+
+        uint256 preUsdc = vault.balances(alice, address(usdc));
+        uint256 preWeth = vault.balances(alice, address(weth));
+
+        vault.execute(alice);
+
+        uint256 postUsdc = vault.balances(alice, address(usdc));
+        uint256 postWeth = vault.balances(alice, address(weth));
+
+        // USDC spent
+        assertEq(preUsdc - postUsdc, 100e6);
+
+        // Oracle expectedOut at $2,000 ETH is 0.05 WETH; with 0.5% slippage → 0.04975 WETH
+        uint256 minOut = (0.05e18 * (10_000 - 50)) / 10_000;
+        assertEq(postWeth - preWeth, minOut, "mock pays amountOutMinimum exactly");
     }
 
     // --- helpers (pure) to mirror on-chain math ---
