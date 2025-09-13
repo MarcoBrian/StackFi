@@ -1,6 +1,6 @@
 # StackFi
 
-StackFi is a non-custodial, oracle-secured robo-advisor that automates dollar-cost averaging (DCA) into crypto portfolios, safely and transparently on-chain.
+StackFi is a non-custodial, oracle-secured, decentralized app that automates dollar-cost averaging (DCA) into crypto portfolios, safely and transparently on-chain.
 
 
 ## Overview
