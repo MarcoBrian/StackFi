@@ -1,0 +1,154 @@
+/* Navbar Styles */
+.navbar {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  position: sticky;
+  top: 0;
+  border-radius: 10px;
+  z-index: 1000;
+  width: 100%;
+}
+
+.navbar-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navbar-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
+.navbar-brand h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.navbar-menu {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 24px;
+}
+
+.navbar-link {
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.navbar-link:hover {
+  color: var(--text);
+}
+
+.navbar-link.active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wallet-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-display {
+  background: var(--silver-light);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.navbar-toggle {
+  display: none;
+  flex-direction: column;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  gap: 4px;
+}
+
+.navbar-toggle span {
+  width: 20px;
+  height: 2px;
+  background: var(--text);
+  transition: all 0.3s ease;
+}
+
+.navbar-mobile {
+  display: none;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  padding: 16px;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.btn.small {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .navbar-menu {
+    display: none;
+  }
+  
+  .navbar-toggle {
+    display: flex;
+  }
+  
+  .navbar-mobile {
+    display: flex;
+  }
+  
+  .navbar-container {
+    height: 56px;
+  }
+  
+  .navbar-brand h2 {
+    font-size: 20px;
+  }
+  
+  .navbar-logo {
+    height: 28px;
+  }
+}
