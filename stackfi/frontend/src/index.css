@@ -12,7 +12,7 @@
 * { box-sizing: border-box; }
 body { 
   margin: 0; 
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif; 
+  font-family: "Clash Grotesk", Inter, "Inter Fallback", sans-serif; 
   background: var(--bg); 
   color: var(--text); 
   line-height: 1.6;
