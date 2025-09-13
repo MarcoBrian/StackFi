@@ -140,12 +140,14 @@ select:focus, input:focus {
   gap: 16px; 
 }
 .segmented { 
-  display: inline-flex; 
+  display: flex; 
   background: var(--silver-light); 
   border-radius: 8px; 
   padding: 4px; 
   gap: 4px; 
   border: 1px solid var(--border);
+  width: fit-content;
+  margin: 0 auto;
 }
 .segmented button { 
   background: transparent; 
