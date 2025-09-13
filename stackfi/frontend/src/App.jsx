@@ -3,23 +3,27 @@ import './App.css'
 import { ethers } from 'ethers'
 import NavBar from './components/NavBar'
 import About from './pages/About'
+import usdcLogo from './assets/crypto-logo/usd-coin-usdc-logo.svg'
+import ethLogo from './assets/crypto-logo/ethereum-eth-logo.svg'
+import repeatIcon from './assets/repeat.svg'
 
 const CHAIN_ID_HEX = '0x7a69' // 31337
 
 const TOKENS = {
-  USDC: { symbol: 'USDC', decimals: 6, address: '0x0000000000000000000000000000000000000000' },
-  WETH: { symbol: 'WETH', decimals: 18, address: '0x0000000000000000000000000000000000000000' },
+  USDC: { symbol: 'USDC', decimals: 6, address: '0x0000000000000000000000000000000000000000', logo: usdcLogo },
+  WETH: { symbol: 'WETH', decimals: 18, address: '0x0000000000000000000000000000000000000000', logo: ethLogo },
 }
 
 function App() {
   const [account, setAccount] = useState(null)
   const [chainId, setChainId] = useState(null)
-  const [sellToken] = useState(TOKENS.USDC)
+  const [sellToken, setSellToken] = useState(TOKENS.USDC)
   const [buyToken, setBuyToken] = useState(TOKENS.WETH)
   const [amountUSDC, setAmountUSDC] = useState('')
   const [schedule, setSchedule] = useState('daily')
   const [numExecutions, setNumExecutions] = useState(7)
   const [currentPage, setCurrentPage] = useState('home')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   const isCorrectNetwork = chainId === CHAIN_ID_HEX
 
@@ -43,6 +47,27 @@ function App() {
       } catch {}
     }
   }, [])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isDropdownOpen && !event.target.closest('.custom-dropdown')) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isDropdownOpen])
+
+  // Auto-switch buy token if it becomes the same as sell token
+  useEffect(() => {
+    if (buyToken.symbol === sellToken.symbol) {
+      const otherToken = Object.values(TOKENS).find(token => token.symbol !== sellToken.symbol)
+      if (otherToken) {
+        setBuyToken(otherToken)
+      }
+    }
+  }, [sellToken, buyToken])
 
   const connect = async () => {
     if (!window.ethereum) {
@@ -76,6 +101,20 @@ function App() {
     }
   }
 
+  const handleTokenSelect = (tokenSymbol) => {
+    setBuyToken(TOKENS[tokenSymbol])
+    setIsDropdownOpen(false)
+  }
+
+  const switchTokens = () => {
+    const tempSellToken = sellToken
+    setSellToken(buyToken)
+    setBuyToken(tempSellToken)
+  }
+
+  // Get available tokens for the receive dropdown (exclude the sell token)
+  const availableTokens = Object.values(TOKENS).filter(token => token.symbol !== sellToken.symbol)
+
   const handleSubmit = (e) => {
     e.preventDefault()
     const payload = {
@@ -106,13 +145,57 @@ function App() {
                 <section className="swapBox">
                   <div className="tokenCol">
                     <label>You sell</label>
-                    <div className="pill">{sellToken.symbol}</div>
+                    <div className="pill">
+                      {sellToken.logo && <img src={sellToken.logo} alt={sellToken.symbol} className="token-logo" onError={(e) => console.log('Image load error:', e)} onLoad={() => console.log('Image loaded successfully')} />}
+                      {sellToken.symbol}
+                    </div>
                   </div>
+                  
+                  <div className="switch-button-container">
+                    <button 
+                      type="button" 
+                      className="switch-button"
+                      onClick={switchTokens}
+                      title="Switch tokens"
+                    >
+                      <img src={repeatIcon} alt="Switch tokens" className="switch-icon" />
+                    </button>
+                  </div>
+
                   <div className="tokenCol">
                     <label>You receive</label>
-                    <select value={buyToken.symbol} onChange={(e) => setBuyToken(TOKENS[e.target.value])}>
-                      <option value="WETH">WETH</option>
-                    </select>
+                    <div className="custom-dropdown">
+                      <div 
+                        className="dropdown-trigger" 
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      >
+                        {buyToken.logo && <img src={buyToken.logo} alt={buyToken.symbol} className="token-logo" />}
+                        <span>{buyToken.symbol}</span>
+                        <svg 
+                          className={`dropdown-arrow ${isDropdownOpen ? 'open' : ''}`} 
+                          width="12" 
+                          height="8" 
+                          viewBox="0 0 12 8" 
+                          fill="none"
+                        >
+                          <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      {isDropdownOpen && (
+                        <div className="dropdown-menu">
+                          {availableTokens.map((token) => (
+                            <div
+                              key={token.symbol}
+                              className={`dropdown-item ${buyToken.symbol === token.symbol ? 'selected' : ''}`}
+                              onClick={() => handleTokenSelect(token.symbol)}
+                            >
+                              {token.logo && <img src={token.logo} alt={token.symbol} className="token-logo" />}
+                              <span>{token.symbol}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </section>
 
@@ -128,7 +211,7 @@ function App() {
                       onChange={(e) => setAmountUSDC(e.target.value)}
                       required
                     />
-                    <span className="unit">USDC</span>
+                    <span className="unit">USD</span>
                   </div>
                 </section>
 

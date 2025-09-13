@@ -5,8 +5,10 @@ function About() {
     <div className="about-page">
       <div className="about-container">
         <div className="about-header">
-          <img src="/logo.png" alt="StackFi Logo" className="about-logo" />
-          <h1>About StackFi</h1>
+          <div className="about-title-container">
+            <img src="/logo.png" alt="StackFi Logo" className="about-logo" />
+            <h1>About StackFi</h1>
+          </div>
           <p className="about-subtitle">
             StackFi is a non-custodial, oracle-secured decentralized application that automates dollar-cost averaging (DCA) 
             into crypto portfolios, safely and transparently on-chain.
@@ -25,7 +27,7 @@ Today, they still rely on centralized exchanges to do so and do not have self-cu
           <section className="about-section">
             <h2>Our Solution</h2>
             <p>
-              StackFi addresses this by bringing DCA on-chain with security, transparency, and automation:
+              StackFi addresses this by bringing DCA on-chain with security, transparency, and automation. Users can connect their wallet and start investing.
             </p>
             <div className="solution-grid">
               <div className="solution-item">
