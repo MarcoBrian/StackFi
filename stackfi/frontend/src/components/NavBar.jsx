@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './NavBar.css'
 
-function NavBar({ account, onConnect, onSwitchNetwork, isCorrectNetwork }) {
+function NavBar({ account, onConnect, onSwitchNetwork, isCorrectNetwork, onNavigate, currentPage }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   return (
@@ -14,8 +14,18 @@ function NavBar({ account, onConnect, onSwitchNetwork, isCorrectNetwork }) {
         
         <div className="navbar-menu">
           <div className="navbar-links">
-            <a href="#home" className="navbar-link">Home</a>
-            <a href="#about" className="navbar-link">About</a>
+            <button 
+              className={`navbar-link ${currentPage === 'home' ? 'active' : ''}`}
+              onClick={() => onNavigate('home')}
+            >
+              App
+            </button>
+            <button 
+              className={`navbar-link ${currentPage === 'about' ? 'active' : ''}`}
+              onClick={() => onNavigate('about')}
+            >
+              About
+            </button>
           </div>
           
           <div className="navbar-actions">
@@ -52,10 +62,24 @@ function NavBar({ account, onConnect, onSwitchNetwork, isCorrectNetwork }) {
       
       {isMenuOpen && (
         <div className="navbar-mobile">
-          <a href="#home" className="navbar-link">Home</a>
-          <a href="#invest" className="navbar-link">Invest</a>
-          <a href="#portfolio" className="navbar-link">Portfolio</a>
-          <a href="#about" className="navbar-link">About</a>
+          <button 
+            className={`navbar-link ${currentPage === 'home' ? 'active' : ''}`}
+            onClick={() => {
+              onNavigate('home')
+              setIsMenuOpen(false)
+            }}
+          >
+            App
+          </button>
+          <button 
+            className={`navbar-link ${currentPage === 'about' ? 'active' : ''}`}
+            onClick={() => {
+              onNavigate('about')
+              setIsMenuOpen(false)
+            }}
+          >
+            About
+          </button>
           {!account && (
             <button className="btn" onClick={onConnect}>
               Connect Wallet
