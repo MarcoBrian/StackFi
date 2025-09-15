@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
+import "forge-std/console.sol";
 
 import {StackFiVault} from "../src/StackFiVault.sol";
 import {MockERC20} from "../src/MockERC20.sol";
@@ -49,21 +50,42 @@ contract StackFiVaultMockTest is Test {
 
     function test_DepositAndWithdraw() public {
         uint256 amount = 500 * 10 ** usdc.decimals();
+        
+        console.log("=== Starting Deposit and Withdraw Test ===");
+        console.log("Initial USDC amount:", amount);
+        console.log("Alice address:", alice);
 
         vm.startPrank(alice);
         vault.deposit(address(usdc), amount);
         vm.stopPrank();
 
-        assertEq(vault.balances(alice, address(usdc)), amount, "balance after deposit");
+        uint256 balanceAfterDeposit = vault.balances(alice, address(usdc));
+        console.log("Balance after deposit:", balanceAfterDeposit);
+        assertEq(balanceAfterDeposit, amount, "balance after deposit");
 
+        uint256 withdrawAmount = 200 * 10 ** usdc.decimals();
+        console.log("Withdrawing amount:", withdrawAmount);
+        
         vm.startPrank(alice);
-        vault.withdraw(address(usdc), 200 * 10 ** usdc.decimals());
+        vault.withdraw(address(usdc), withdrawAmount);
         vm.stopPrank();
 
-        assertEq(vault.balances(alice, address(usdc)), 300 * 10 ** usdc.decimals(), "balance after withdraw");
+        uint256 finalBalance = vault.balances(alice, address(usdc));
+        console.log("Final balance after withdraw:", finalBalance);
+        assertEq(finalBalance, 300 * 10 ** usdc.decimals(), "balance after withdraw");
+        
+        console.log("=== Test Completed Successfully ===");
     }
 
     function test_CreatePlanAndExecute_UsesOracleMinOut() public {
+        // 1) Deploy router + set on vault
+        MockSwapRouter router = new MockSwapRouter();
+        vm.prank(vault.owner());
+        vault.setRouter(address(router));
+
+        // 2) Fund router with tokenOut so it can pay minOut
+        weth.mint(address(router), 1_000 ether);
+
         // Alice deposits 1,000 USDC
         uint256 depositAmount = 1_000 * 10 ** usdc.decimals();
         vm.startPrank(alice);

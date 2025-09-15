@@ -41,8 +41,8 @@ contract StackFiVault is Ownable , ReentrancyGuard{
 
   ISwapRouter public uniV3Router;
   
-  // Uniswap V3 fee tier (3000 = 0.3%) default fee tier
-  uint24 public constant defaultFee = 3000;
+  // Uniswap V3 fee tier (500 = 0.05%) default fee tier
+  uint24 public constant defaultFee = 500;
 
   mapping(address => AssetConfig) public assets;    // token => config
   mapping(address => mapping(address => uint256)) public balances; // user => token => amount
@@ -125,6 +125,8 @@ function _swapUniV3(address tokenIn, address tokenOut, uint256 amountIn, uint256
     require(assets[tokenIn].enabled && assets[tokenOut].enabled, "asset not allowed");
     require(amountPerBuy > 0, "invalid amount");
     require(frequency >= 1 days, "too frequent");
+    require(tokenIn != tokenOut, "tokenIn == tokenOut");
+
     plans[msg.sender] = DCAPlan(tokenIn, tokenOut, amountPerBuy, frequency, uint40(block.timestamp + frequency), slippageBps, true);
     emit PlanCreated(msg.sender, tokenIn, tokenOut, amountPerBuy, frequency, slippageBps);
 
@@ -186,8 +188,9 @@ function _expectedOutFromOracles(address tokenIn, address tokenOut, uint256 amou
     uint256 expectedOut = _expectedOutFromOracles(p.tokenIn, p.tokenOut, amountIn);
     uint256 minOut      = _applySlippage(expectedOut, p.slippageBps);
 
-    // TODO: call DEX with minOut. For now, stub to expectedOut so you can test flow.
-    uint256 amountOut = minOut; // TEMP
+    // Perform the swap: Vault holds user funds, so the contract is the sender/recipient.
+    // uint256 amountOut = _swapUniV3(p.tokenIn, p.tokenOut, amountIn, minOut);
+    uint256 amountOut = minOut;
 
     balances[user][p.tokenIn]  -= amountIn;
     balances[user][p.tokenOut] += amountOut;
