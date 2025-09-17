@@ -5,12 +5,14 @@ import "forge-std/Test.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
-import {SwapExamples} from "../src/SwapExamples.sol";
+import {SwapExamples} from "../src/examples/SwapExamples.sol";
 
 contract SwapExamplesTest is Test {
     // Mainnet token addresses
     address constant DAI  = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
 
     // Uniswap v3 SwapRouter on mainnet
     ISwapRouter constant ROUTER =
@@ -29,6 +31,9 @@ contract SwapExamplesTest is Test {
 
         // give user 1000 DAI
         deal(DAI, user, 1_000e18);
+
+        // give user 1000 usdc
+        deal(USDC, user, 1000e6); 
     }
 
     function test_swapExactInputSingle() public {
@@ -43,7 +48,7 @@ contract SwapExamplesTest is Test {
 
         vm.startPrank(user);
         IERC20(DAI).approve(address(example), amountIn);
-        uint256 amountOut = example.swapExactInputSingle(amountIn);
+        uint256 amountOut = example.swapExactInputSingle(amountIn, DAI);
         vm.stopPrank();
 
         uint256 daiAfter  = IERC20(DAI).balanceOf(user);
@@ -60,4 +65,40 @@ contract SwapExamplesTest is Test {
         assertGt(amountOut, 0, "No WETH received");
         assertEq(wethAfter - wethBefore, amountOut, "WETH delta mismatch");
     }
+
+    function test_swapExactInputSingleUSDC() public {
+        uint256 amountIn = 100e6; // 100 usdc ;
+        uint256 usdcBefore  = IERC20(USDC).balanceOf(user);
+        uint256 wethBefore = IERC20(WETH).balanceOf(user);
+
+
+        console.log("=== Before Swap ===");
+        console.log("USDC (user): %s in e6", usdcBefore );
+        console.log("WETH (user): %s", wethBefore );
+
+
+        vm.startPrank(user);
+        IERC20(USDC).approve(address(example), amountIn);
+        uint256 amountOut = example.swapExactInputSingle(amountIn, USDC);
+        vm.stopPrank();
+
+        uint256 usdcAfter  = IERC20(USDC).balanceOf(user);
+        uint256 wethAfter = IERC20(WETH).balanceOf(user);
+
+        console.log("=== After Swap ===");
+        console.log("USDC (user): %s", usdcAfter );
+        console.log("WETH (user): %s", wethAfter );
+        console.log("USDC spent: %s", (usdcBefore - usdcAfter));
+        console.log("WETH received: %s", (wethAfter - wethBefore) );
+        console.log("amountOut returned by contract: %s", amountOut );
+
+        assertEq(usdcBefore - usdcAfter, amountIn, "USDC spent mismatch");
+        assertGt(amountOut, 0, "No WETH received");
+        assertEq(wethAfter - wethBefore, amountOut, "WETH delta mismatch");
+
+
+
+    }
+
+
 }

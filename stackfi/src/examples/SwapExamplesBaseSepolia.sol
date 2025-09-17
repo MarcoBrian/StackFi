@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 pragma abicoder v2;
 
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
-import { ISwapRouter02Minimal as ISwapRouter02 } from "./interfaces/ISwapRouter02Minimal.sol";
+import { ISwapRouter02Minimal as ISwapRouter02 } from "../interfaces/ISwapRouter02Minimal.sol";
 
 contract SwapExamplesBaseSepolia {
     ISwapRouter02 public immutable swapRouter;

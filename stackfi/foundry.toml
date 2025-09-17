@@ -4,7 +4,10 @@ src = "src"
 out = "out"
 libs = ["lib"]
 remappings = [
-    "@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
+
+    # Uniswap v3-periphery expects this one:
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "@chainlink/local/=lib/chainlink-local/",
     "@uniswap/v3-core/=lib/v3-core/",

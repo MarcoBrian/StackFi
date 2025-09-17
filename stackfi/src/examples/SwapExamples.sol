@@ -33,20 +33,20 @@ swapRouter = _swapRouter;
 /// @dev The calling address must approve this contract to spend at least `amountIn` worth of its DAI for this function to succeed.
 /// @param amountIn The exact amount of DAI that will be swapped for WETH9.
 /// @return amountOut The amount of WETH9 received.
-function swapExactInputSingle(uint256 amountIn) external returns (uint256 amountOut) {
+function swapExactInputSingle(uint256 amountIn, address tokenSpend) external returns (uint256 amountOut) {
 // msg.sender must approve this contract
 
 // Transfer the specified amount of DAI to this contract.
-TransferHelper.safeTransferFrom(DAI, msg.sender, address(this), amountIn);
+TransferHelper.safeTransferFrom(tokenSpend, msg.sender, address(this), amountIn);
 
 // Approve the router to spend DAI.
-TransferHelper.safeApprove(DAI, address(swapRouter), amountIn);
+TransferHelper.safeApprove(tokenSpend, address(swapRouter), amountIn);
 
 // Naively set amountOutMinimum to 0. In production, use an oracle or other data source to choose a safer value for amountOutMinimum.
 // We also set the sqrtPriceLimitx96 to be 0 to ensure we swap our exact input amount.
 ISwapRouter.ExactInputSingleParams memory params =
 ISwapRouter.ExactInputSingleParams({
-tokenIn: DAI,
+tokenIn: tokenSpend,
 tokenOut: WETH9,
 fee: poolFee,
 recipient: msg.sender,
@@ -66,34 +66,34 @@ amountOut = swapRouter.exactInputSingle(params);
 /// @param amountOut The exact amount of WETH9 to receive from the swap.
 /// @param amountInMaximum The amount of DAI we are willing to spend to receive the specified amount of WETH9.
 /// @return amountIn The amount of DAI actually spent in the swap.
-function swapExactOutputSingle(uint256 amountOut, uint256 amountInMaximum) external returns (uint256 amountIn) {
-// Transfer the specified amount of DAI to this contract.
-TransferHelper.safeTransferFrom(DAI, msg.sender, address(this), amountInMaximum);
+function swapExactOutputSingle(uint256 amountOut, uint256 amountInMaximum, address tokenSpend) external returns (uint256 amountIn) {
+    // Transfer the specified amount of DAI to this contract.
+    TransferHelper.safeTransferFrom(DAI, msg.sender, address(this), amountInMaximum);
 
-// Approve the router to spend the specifed `amountInMaximum` of DAI.
-// In production, you should choose the maximum amount to spend based on oracles or other data sources to acheive a better swap.
-TransferHelper.safeApprove(DAI, address(swapRouter), amountInMaximum);
+    // Approve the router to spend the specifed `amountInMaximum` of DAI.
+    // In production, you should choose the maximum amount to spend based on oracles or other data sources to acheive a better swap.
+    TransferHelper.safeApprove(DAI, address(swapRouter), amountInMaximum);
 
-ISwapRouter.ExactOutputSingleParams memory params =
-ISwapRouter.ExactOutputSingleParams({
-tokenIn: DAI,
-tokenOut: WETH9,
-fee: poolFee,
-recipient: msg.sender,
-deadline: block.timestamp,
-amountOut: amountOut,
-amountInMaximum: amountInMaximum,
-sqrtPriceLimitX96: 0
-});
+    ISwapRouter.ExactOutputSingleParams memory params =
+        ISwapRouter.ExactOutputSingleParams({
+        tokenIn: tokenSpend,
+        tokenOut: WETH9,
+        fee: poolFee,
+        recipient: msg.sender,
+        deadline: block.timestamp,
+        amountOut: amountOut,
+        amountInMaximum: amountInMaximum,
+        sqrtPriceLimitX96: 0
+        });
 
-// Executes the swap returning the amountIn needed to spend to receive the desired amountOut.
-amountIn = swapRouter.exactOutputSingle(params);
+    // Executes the swap returning the amountIn needed to spend to receive the desired amountOut.
+    amountIn = swapRouter.exactOutputSingle(params);
 
-// For exact output swaps, the amountInMaximum may not have all been spent.
-// If the actual amount spent (amountIn) is less than the specified maximum amount, we must refund the msg.sender and approve the swapRouter to spend 0.
-if (amountIn < amountInMaximum) {
-TransferHelper.safeApprove(DAI, address(swapRouter), 0);
-TransferHelper.safeTransfer(DAI, msg.sender, amountInMaximum - amountIn);
-}
-}
+    // For exact output swaps, the amountInMaximum may not have all been spent.
+    // If the actual amount spent (amountIn) is less than the specified maximum amount, we must refund the msg.sender and approve the swapRouter to spend 0.
+    if (amountIn < amountInMaximum) {
+        TransferHelper.safeApprove(tokenSpend, address(swapRouter), 0);
+        TransferHelper.safeTransfer(tokenSpend, msg.sender, amountInMaximum - amountIn);
+        }
+    }
 }

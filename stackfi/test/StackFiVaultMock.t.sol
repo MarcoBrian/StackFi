@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
 import {StackFiVault} from "../src/StackFiVault.sol";
-import {MockERC20} from "../src/MockERC20.sol";
+import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator.sol";
 import {MockSwapRouter} from "./mocks/MockSwapRouter.sol"; 
 

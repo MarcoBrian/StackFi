@@ -16,9 +16,6 @@
 [submodule "stackfi/lib/v3-core"]
 	path = stackfi/lib/v3-core
 	url = https://github.com/Uniswap/v3-core
-[submodule "stackfi/lib/openzeppelin-contracts"]
-	path = stackfi/lib/openzeppelin-contracts
-	url = https://github.com/OpenZeppelin/openzeppelin-contracts
 [submodule "stackfi/lib/v4-core"]
 	path = stackfi/lib/v4-core
 	url = https://github.com/uniswap/v4-core
@@ -34,3 +31,6 @@
 [submodule "stackfi/lib/swap-router-contracts"]
 	path = stackfi/lib/swap-router-contracts
 	url = https://github.com/Uniswap/swap-router-contracts
+[submodule "stackfi/lib/openzeppelin-contracts"]
+	path = stackfi/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
