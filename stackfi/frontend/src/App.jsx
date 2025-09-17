@@ -1,52 +1,208 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import { ethers } from 'ethers'
 import NavBar from './components/NavBar'
 import About from './pages/About'
+import ActivePlan from './components/ActivePlan'
 import usdcLogo from './assets/crypto-logo/usd-coin-usdc-logo.svg'
 import ethLogo from './assets/crypto-logo/ethereum-eth-logo.svg'
 import repeatIcon from './assets/repeat.svg'
 
-const CHAIN_ID_HEX = '0x7a69' // 31337
+
+
+import { ADDRS, DECIMALS, CHAIN_ID_HEX } from './config/addresses';
+import { getVault, getErc20 } from './lib/contracts';
+import { toUnits, fromUnits } from './lib/units';
+
 
 const TOKENS = {
-  USDC: { symbol: 'USDC', decimals: 6, address: '0x0000000000000000000000000000000000000000', logo: usdcLogo },
-  WETH: { symbol: 'WETH', decimals: 18, address: '0x0000000000000000000000000000000000000000', logo: ethLogo },
-}
+    USDC: { symbol: 'USDC', decimals: DECIMALS.USDC, address: ADDRS.USDC, logo: usdcLogo },
+    WETH: { symbol: 'WETH', decimals: DECIMALS.WETH, address: ADDRS.WETH, logo: ethLogo },
+};
+
 
 function App() {
-  const [account, setAccount] = useState(null)
-  const [chainId, setChainId] = useState(null)
-  const [sellToken, setSellToken] = useState(TOKENS.USDC)
-  const [buyToken, setBuyToken] = useState(TOKENS.WETH)
-  const [amountUSDC, setAmountUSDC] = useState('')
-  const [schedule, setSchedule] = useState('daily')
-  const [numExecutions, setNumExecutions] = useState(7)
-  const [currentPage, setCurrentPage] = useState('home')
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-
+  const [account, setAccount] = useState(null);
+  const [chainId, setChainId] = useState(null);
+  const [sellToken, setSellToken] = useState(TOKENS.USDC);
+  const [buyToken, setBuyToken] = useState(TOKENS.WETH);
+  const [amountUSDC, setAmountUSDC] = useState('');
+  const [schedule, setSchedule] = useState('daily');
+  const [numExecutions, setNumExecutions] = useState(7);
+  const [currentPage, setCurrentPage] = useState('home');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [vaultUsdc, setVaultUsdc] = useState('0');
+  const [vaultWeth, setVaultWeth] = useState('0');
+  const [planInfo, setPlanInfo] = useState(null);
+  const [slippagePct, setSlippagePct] = useState('0.50');
+  const [isSlippageAuto, setIsSlippageAuto] = useState(true);
   const isCorrectNetwork = chainId === CHAIN_ID_HEX
 
-  const provider = useMemo(() => {
-    if (!window.ethereum) return null
-    return new ethers.BrowserProvider(window.ethereum)
-  }, [])
 
-  useEffect(() => {
-    if (!window.ethereum) return
-    const handleAccountsChanged = (accs) => setAccount(accs?.[0] ?? null)
-    const handleChainChanged = (id) => setChainId(id)
-    window.ethereum.request({ method: 'eth_accounts' }).then((accs) => handleAccountsChanged(accs))
-    window.ethereum.request({ method: 'eth_chainId' }).then((id) => handleChainChanged(id))
-    window.ethereum.on('accountsChanged', handleAccountsChanged)
-    window.ethereum.on('chainChanged', handleChainChanged)
-    return () => {
-      try {
-        window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
-        window.ethereum.removeListener('chainChanged', handleChainChanged)
-      } catch {}
+  const normalizePlan = (p) => ({
+    tokenIn: p.tokenIn,
+    tokenOut: p.tokenOut,
+    amountPerBuy: p.amountPerBuy,               // bigint, keep as bigint
+    frequency: Number(p.frequency),             // fits u32 → number OK
+    nextRunAt: Number(p.nextRunAt),             // fits u40 → number OK
+    slippageBps: Number(p.slippageBps),         // u16 → number
+    active: Boolean(p.active),
+  });
+
+  const refreshState = async () => {
+  if (!account) return;
+  try {
+  const vault = await getVault();
+  const usdcBal = await vault.balances(account, ADDRS.USDC);
+  const wethBal = await vault.balances(account, ADDRS.WETH);
+  const plan = await vault.plans(account);
+
+  setVaultUsdc(fromUnits(usdcBal, DECIMALS.USDC));
+  setVaultWeth(fromUnits(wethBal, DECIMALS.WETH));
+  setPlanInfo(normalizePlan(plan));
+  } catch (e) { console.error(e); }
+  };
+
+
+
+  const ensureWallet = async () => {
+    if (!window.ethereum) throw new Error('Wallet not found');
+    if (!account) {
+    const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    setAccount(accs[0]);
     }
-  }, [])
+    const id = await window.ethereum.request({ method: 'eth_chainId' });
+    setChainId(id);
+    if (id !== CHAIN_ID_HEX) throw new Error('Wrong network');
+    };
+    
+    
+    const approveIfNeeded = async (tokenAddr, spender, amount) => {
+    const erc20 = await getErc20(tokenAddr);
+    const owner = account;
+    const current = await erc20.allowance(owner, spender);
+    if (current < amount) {
+    const tx = await erc20.approve(spender, amount);
+    await tx.wait();
+    }
+    };
+    
+    
+    const depositUSDC = async (rawAmount) => {
+    const amount = toUnits(rawAmount, DECIMALS.USDC); // bigint
+    await ensureWallet();
+    await approveIfNeeded(ADDRS.USDC, ADDRS.VAULT, amount);
+    const vault = await getVault();
+    const tx = await vault.deposit(ADDRS.USDC, amount);
+    await tx.wait();
+    await refreshState(); 
+    return amount;
+    };
+    
+    
+    const createDcaPlan = async (tokenIn, tokenOut, amountPerBuyUSDC, scheduleKey, slippageBps = 100) => {
+    await ensureWallet();
+    const vault = await getVault();
+    const amountPerBuy = toUnits(amountPerBuyUSDC, DECIMALS.USDC);
+    const frequency = FREQ[scheduleKey];
+    if (!frequency) throw new Error('Invalid schedule');
+    if (tokenIn === tokenOut) throw new Error('tokenIn == tokenOut');
+    const tx = await vault.createPlan(tokenIn, tokenOut, amountPerBuy, frequency, slippageBps);
+    await tx.wait();
+    await refreshState(); 
+    };
+    
+    
+    const executeSelf = async () => {
+    await ensureWallet();
+    const vault = await getVault();
+    const tx = await vault.execute(account);
+    await tx.wait();
+    await refreshState(); 
+    };
+    
+    
+    const cancelPlan = async () => {
+    await ensureWallet();
+    const vault = await getVault();
+    const tx = await vault.cancelPlan();
+    await tx.wait();
+    await refreshState(); 
+    };
+
+
+    // Refresh when account / chain changes
+    useEffect(() => {
+      if (account && chainId) {
+        refreshState().catch(console.error);
+      }
+    }, [account, chainId]);
+
+
+  // Setting up wallet listeners and events
+  useEffect(() => {
+    if (!window.ethereum) return;
+    let isMounted = true;
+
+
+    const handleAccountsChanged = (accs) => {
+    if (!isMounted) return;
+    setAccount(accs?.[0] ?? null);
+    // Optional: refreshState(); // re-read vault balances/plan
+    };
+
+
+    const handleChainChanged = (id) => {
+    if (!isMounted) return;
+    setChainId(id);
+    // Optional: if (id !== CHAIN_ID_HEX) prompt to switch or show banner
+    // Optional: refreshState();
+    };
+
+
+    const handleConnect = (info) => {
+    // info?.chainId may be provided (hex string)
+    // You can re-run reconcile here if desired
+    };
+
+
+    const handleDisconnect = (error) => {
+    if (!isMounted) return;
+    setAccount(null);
+    };
+
+
+    // Initial reconcile (silent, no popup)
+    (async () => {
+    try {
+    const accs = await window.ethereum.request({ method: 'eth_accounts' });
+    handleAccountsChanged(accs);
+    const id = await window.ethereum.request({ method: 'eth_chainId' });
+    handleChainChanged(id);
+    } catch (e) {
+    console.error('wallet reconcile failed', e);
+    }
+    })();
+
+
+    // Subscribe wallet events
+    window.ethereum.on('accountsChanged', handleAccountsChanged);
+    window.ethereum.on('chainChanged', handleChainChanged);
+    window.ethereum.on('connect', handleConnect);
+    window.ethereum.on('disconnect', handleDisconnect);
+
+
+    // Cleanup
+    return () => {
+    isMounted = false;
+    try {
+    window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+    window.ethereum.removeListener('chainChanged', handleChainChanged);
+    window.ethereum.removeListener('connect', handleConnect);
+    window.ethereum.removeListener('disconnect', handleDisconnect);
+    } catch {}
+    };
+}, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -115,19 +271,35 @@ function App() {
   // Get available tokens for the receive dropdown (exclude the sell token)
   const availableTokens = Object.values(TOKENS).filter(token => token.symbol !== sellToken.symbol)
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    const payload = {
-      account,
-      sellToken: sellToken.symbol,
-      buyToken: buyToken.symbol,
-      amountUSDC,
-      schedule,
-      numExecutions,
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+    if (!account) throw new Error('Connect wallet first');
+    
+    // UI only supports USDC → WETH for now; extend as needed
+    const tokenIn = sellToken.address; // typically USDC
+    const tokenOut = buyToken.address; // typically WETH
+    
+    
+    if (!amountUSDC || Number(amountUSDC) <= 0) throw new Error('Enter amount');
+    
+    
+    // 1) approve & deposit to vault
+    await depositUSDC(amountUSDC);
+    
+    
+    // 2) create the plan with chosen slippage (percent → bps)
+    const parsedPct = Number.parseFloat(slippagePct);
+    const safePct = Number.isFinite(parsedPct) ? Math.max(0, Math.min(20, parsedPct)) : 0.5; // clamp 0–20%
+    const slippageBps = Math.round(safePct * 100);
+    await createDcaPlan(tokenIn, tokenOut, amountUSDC, schedule, slippageBps);
+    
+    alert('Plan created! Vault will execute when due.');
+    } catch (err) {
+    console.error(err);
+    alert(err?.message ?? 'Tx failed');
     }
-    console.log('Create plan (UI only):', payload)
-    alert('Plan prepared in console. On-chain integration to be added later.')
-  }
+    };
 
   const renderPage = () => {
     switch (currentPage) {
@@ -215,7 +387,7 @@ function App() {
                   </div>
                 </section>
 
-                <section className="grid2">
+                <section className="grid3">
                   <div>
                     <label>Number of executions</label>
                     <input
@@ -237,6 +409,37 @@ function App() {
                       </button>
                     </div>
                   </div>
+                  <div className="slippageCol">
+                    <label>Max slippage</label>
+                    <div className="slippageRow">
+                      <button
+                        type="button"
+                        className={`auto-pill ${isSlippageAuto ? 'active' : 'custom'}`}
+                        onClick={() => { setSlippagePct('0.50'); setIsSlippageAuto(true); }}
+                      >
+                        Auto
+                      </button>
+                      <div className={`slippageInput ${isSlippageAuto ? 'auto' : ''}`}>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          min="0"
+                          max="50"
+                          value={slippagePct}
+                          onChange={(e) => { 
+                            const value = e.target.value;
+                            // Allow only 2 decimal places and max 10%
+                            if (value === '' || (/^\d*\.?\d{0,2}$/.test(value) && parseFloat(value) <= 20)) {
+                              setSlippagePct(value);
+                              setIsSlippageAuto(false);
+                            }
+                          }}
+                          aria-label="Max slippage percent"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </section>
 
                 <button type="submit" className="primary">
@@ -244,6 +447,25 @@ function App() {
                 </button>
               </form>
             </div>
+
+            {account && (
+            <div className="card">
+            <h3>Your Vault Balances</h3>
+            <div>USDC: {vaultUsdc}</div>
+            <div>WETH: {vaultWeth}</div>
+
+            <ActivePlan 
+              planInfo={planInfo}
+              sellToken={sellToken}
+              buyToken={buyToken}
+              onExecute={executeSelf}
+              onCancel={cancelPlan}
+            />
+
+            
+
+            </div>
+            )}
           </>
         )
     }
