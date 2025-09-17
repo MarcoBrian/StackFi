@@ -2,9 +2,11 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
+import "forge-std/console.sol";
 
 import {StackFiVault} from "../src/StackFiVault.sol";
-import {MockERC20} from "../src/MockERC20.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator.sol";
 import {MockSwapRouter} from "./mocks/MockSwapRouter.sol"; 
 
@@ -17,6 +19,18 @@ contract StackFiVaultMockTest is Test {
 
     MockV3Aggregator internal usdcUsdFeed; // 8 decimals
     MockV3Aggregator internal ethUsdFeed;  // 8 decimals
+
+    // ETH Mainnet addresses
+    address constant REAL_WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address constant REAL_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address constant UNI_V3_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564 ; 
+
+    // Chainlink mainnet feeds
+    address constant FEED_USDC_USD = 0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6; // 8 decimals
+    address constant FEED_ETH_USD  = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419; // 8 decimals
+
+    uint24 public constant defaultFee = 500;
+
 
     address internal alice = address(0xA11CE);
 
@@ -49,21 +63,43 @@ contract StackFiVaultMockTest is Test {
 
     function test_DepositAndWithdraw() public {
         uint256 amount = 500 * 10 ** usdc.decimals();
+        
+        console.log("=== Starting Deposit and Withdraw Test ===");
+        console.log("Initial USDC amount:", amount);
+        console.log("Alice address:", alice);
 
         vm.startPrank(alice);
+        IERC20(REAL_USDC).approve(address(vault), type(uint256).max);
         vault.deposit(address(usdc), amount);
         vm.stopPrank();
 
-        assertEq(vault.balances(alice, address(usdc)), amount, "balance after deposit");
+        uint256 balanceAfterDeposit = vault.balances(alice, address(usdc));
+        console.log("Balance after deposit:", balanceAfterDeposit);
+        assertEq(balanceAfterDeposit, amount, "balance after deposit");
 
+        uint256 withdrawAmount = 200 * 10 ** usdc.decimals();
+        console.log("Withdrawing amount:", withdrawAmount);
+        
         vm.startPrank(alice);
-        vault.withdraw(address(usdc), 200 * 10 ** usdc.decimals());
+        vault.withdraw(address(usdc), withdrawAmount);
         vm.stopPrank();
 
-        assertEq(vault.balances(alice, address(usdc)), 300 * 10 ** usdc.decimals(), "balance after withdraw");
+        uint256 finalBalance = vault.balances(alice, address(usdc));
+        console.log("Final balance after withdraw:", finalBalance);
+        assertEq(finalBalance, 300 * 10 ** usdc.decimals(), "balance after withdraw");
+        
+        console.log("=== Test Completed Successfully ===");
     }
 
     function test_CreatePlanAndExecute_UsesOracleMinOut() public {
+        // 1) Deploy router + set on vault
+        MockSwapRouter router = new MockSwapRouter();
+        vm.prank(vault.owner());
+        vault.setRouter(address(router));
+
+        // 2) Fund router with tokenOut so it can pay minOut
+        weth.mint(address(router), 1_000 ether);
+
         // Alice deposits 1,000 USDC
         uint256 depositAmount = 1_000 * 10 ** usdc.decimals();
         vm.startPrank(alice);
@@ -96,6 +132,63 @@ contract StackFiVaultMockTest is Test {
         // Post-conditions: USDC decreased by amountPerBuy, WETH increased by minOut
         assertEq(vault.balances(alice, address(usdc)), depositAmount - amountPerBuy, "USDC should decrease by buy amount");
         assertEq(vault.balances(alice, address(weth)), minOut, "WETH should increase by minOut");
+
+        // Next run scheduled
+        assertFalse(vault.isDue(alice), "plan should not be immediately due after execute");
+    }
+
+
+    function test_CreatePlanAndExecute_UsesMainnetSwap() public {
+        // 1) Deploy router + set on vault
+        vm.prank(vault.owner());
+        vault.setRouter(UNI_V3_ROUTER);
+        vm.stopPrank();
+
+        // Set REAL mainnet asset 
+        vm.prank(vault.owner());
+        vault.setAsset(REAL_USDC, address(usdcUsdFeed), usdc.decimals(), 1 days, true) ; 
+        vm.prank(vault.owner());
+        vault.setAsset(REAL_WETH, address(ethUsdFeed), weth.decimals(), 1 days, true) ; 
+        vm.stopPrank();
+
+
+      
+        deal(REAL_USDC, alice, 10000e6); 
+        // Alice deposits 1,000 USDC
+        vm.startPrank(alice);
+        IERC20(REAL_USDC).approve(address(vault), type(uint256).max);
+        uint256 depositAmount = 1_000e6;
+        vm.startPrank(alice);
+        vault.deposit(address(REAL_USDC), depositAmount);
+
+        // Create plan: buy 100 USDC worth of WETH every week, 1% slippage
+        uint128 amountPerBuy = 100e6;
+        uint32  frequency    = 7 days;
+        uint16  slippageBps  = 100; // 1%
+        vault.createPlan(REAL_USDC, REAL_WETH, amountPerBuy, frequency, slippageBps);
+        vm.stopPrank();
+
+        // Initially not due
+        assertFalse(vault.isDue(alice), "plan should not be due initially");
+
+        // Warp forward to make it due
+        vm.warp(block.timestamp + frequency);
+        usdcUsdFeed.updateAnswer(1e8);
+        ethUsdFeed.updateAnswer(4500e8);
+
+        assertTrue(vault.isDue(alice), "plan should be due after frequency");
+
+        // Execute by anyone (permissionless)
+        // Compute expectedOut as per contract math to check balances after execute
+        uint256 expectedOutTemp = _expectedOutFromOraclesView(amountPerBuy, 1e8, 4500e8, 6, 18, 8, 8);
+        uint256 finalExpectedOut = _applyPoolFee(expectedOutTemp, defaultFee);
+        uint256 minOut = _applySlippage(finalExpectedOut, slippageBps);
+
+        vault.execute(alice);
+
+        // Post-conditions: USDC decreased by amountPerBuy, WETH increased by minOut
+        assertEq(vault.balances(alice, REAL_USDC), depositAmount - amountPerBuy, "USDC should decrease by buy amount");
+        assertGe(vault.balances(alice, REAL_WETH), minOut, "WETH should increase by minOut");
 
         // Next run scheduled
         assertFalse(vault.isDue(alice), "plan should not be immediately due after execute");
@@ -167,6 +260,11 @@ contract StackFiVaultMockTest is Test {
     function _applySlippage(uint256 amount, uint16 bps) internal pure returns (uint256) {
         return amount * (10000 - bps) / 10000;
     }
+
+    function _applyPoolFee(uint256 amount, uint24 fee) internal pure returns (uint256) {
+    // v3 fee is in hundredths of a bip: 500 = 0.05% = 500 / 1_000_000
+    return amount * (1_000_000 - fee) / 1_000_000;
+}
 
     function _expectedOutFromOraclesView(
         uint256 amountIn,

@@ -17,3 +17,5 @@ docs/
 */.deps
 
 ./lib
+.lib
+lib/universal-router
