@@ -189,8 +189,8 @@ function _expectedOutFromOracles(address tokenIn, address tokenOut, uint256 amou
     uint256 minOut      = _applySlippage(expectedOut, p.slippageBps);
 
     // Perform the swap: Vault holds user funds, so the contract is the sender/recipient.
-    // uint256 amountOut = _swapUniV3(p.tokenIn, p.tokenOut, amountIn, minOut);
-    uint256 amountOut = minOut;
+    uint256 amountOut = _swapUniV3(p.tokenIn, p.tokenOut, amountIn, minOut);
+    // uint256 amountOut = minOut;
 
     balances[user][p.tokenIn]  -= amountIn;
     balances[user][p.tokenOut] += amountOut;
