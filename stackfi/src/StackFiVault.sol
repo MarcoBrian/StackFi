@@ -196,5 +196,8 @@ function _expectedOutFromOracles(address tokenIn, address tokenOut, uint256 amou
     balances[user][p.tokenOut] += amountOut;
 
     p.nextRunAt = uint40(block.timestamp + p.frequency);
+
+    emit Executed(user, p.tokenIn, p.tokenOut, amountIn, amountOut) ;
+
   }
 }

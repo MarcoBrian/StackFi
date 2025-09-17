@@ -44,7 +44,7 @@ StackFi addresses this by bringing DCA on-chain with security, transparency, and
 - Oracle price feeds used for price slippage checks
 
 **DEX Integration**
-- Uniswap v3 / 1inch Aggregation Router
+- Uniswap v3 Router
 
 **Automation**
 - Chainlink Automation
