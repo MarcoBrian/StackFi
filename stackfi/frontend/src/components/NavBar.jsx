@@ -1,8 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './NavBar.css'
 
-function NavBar({ account, onConnect, onSwitchNetwork, isCorrectNetwork, onNavigate, currentPage }) {
+function NavBar({ account, onConnect, onDisconnect, onConnectDifferent, onSwitchNetwork, isCorrectNetwork, isConnecting, onNavigate, currentPage }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isWalletDropdownOpen, setIsWalletDropdownOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsWalletDropdownOpen(false)
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   return (
     <nav className="navbar">
@@ -38,13 +52,45 @@ function NavBar({ account, onConnect, onSwitchNetwork, isCorrectNetwork, onNavig
                 >
                   {isCorrectNetwork ? 'Foundry Local' : 'Switch Network'}
                 </button>
-                <div className="account-display">
-                  {account.slice(0, 6)}...{account.slice(-4)}
+                <div className="wallet-dropdown" ref={dropdownRef}>
+                  <button 
+                    className="account-display"
+                    onClick={() => setIsWalletDropdownOpen(!isWalletDropdownOpen)}
+                  >
+                    {account.slice(0, 6)}...{account.slice(-4)}
+                    <span className={`dropdown-arrow ${isWalletDropdownOpen ? 'open' : ''}`}>▼</span>
+                  </button>
+                  {isWalletDropdownOpen && (
+                    <div className="wallet-dropdown-menu">
+                      <button 
+                        className="wallet-dropdown-item"
+                        onClick={() => {
+                          onConnectDifferent()
+                          setIsWalletDropdownOpen(false)
+                        }}
+                      >
+                        Switch Account
+                      </button>
+                      <button 
+                        className="wallet-dropdown-item"
+                        onClick={() => {
+                          onDisconnect()
+                          setIsWalletDropdownOpen(false)
+                        }}
+                      >
+                        Full Disconnect
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
-              <button className="btn" onClick={onConnect}>
-                Connect Wallet
+              <button 
+                className="btn" 
+                onClick={onConnect}
+                disabled={isConnecting}
+              >
+                {isConnecting ? 'Connecting...' : 'Connect Wallet'}
               </button>
             )}
           </div>
@@ -80,9 +126,43 @@ function NavBar({ account, onConnect, onSwitchNetwork, isCorrectNetwork, onNavig
           >
             About
           </button>
-          {!account && (
-            <button className="btn" onClick={onConnect}>
-              Connect Wallet
+          {account ? (
+            <div className="mobile-wallet-info">
+              <div className="mobile-account">
+                {account.slice(0, 6)}...{account.slice(-4)}
+              </div>
+              <button 
+                className="btn outline small mobile-network"
+                onClick={onSwitchNetwork}
+              >
+                {isCorrectNetwork ? 'Foundry Local' : 'Switch Network'}
+              </button>
+              <button 
+                className="btn outline small mobile-switch"
+                onClick={() => {
+                  onConnectDifferent()
+                  setIsMenuOpen(false)
+                }}
+              >
+                Switch Account
+              </button>
+              <button 
+                className="btn outline small mobile-disconnect"
+                onClick={() => {
+                  onDisconnect()
+                  setIsMenuOpen(false)
+                }}
+              >
+                Full Disconnect
+              </button>
+            </div>
+          ) : (
+            <button 
+              className="btn" 
+              onClick={onConnect}
+              disabled={isConnecting}
+            >
+              {isConnecting ? 'Connecting...' : 'Connect Wallet'}
             </button>
           )}
         </div>

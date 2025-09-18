@@ -8,11 +8,11 @@ import usdcLogo from './assets/crypto-logo/usd-coin-usdc-logo.svg'
 import ethLogo from './assets/crypto-logo/ethereum-eth-logo.svg'
 import repeatIcon from './assets/repeat.svg'
 
-
-
-import { ADDRS, DECIMALS, CHAIN_ID_HEX } from './config/addresses';
+import { ADDRS, DECIMALS } from './config/addresses';
 import { getVault, getErc20 } from './lib/contracts';
 import { toUnits, fromUnits } from './lib/units';
+import { useWallet } from './hooks/useWallet';
+import { useToast } from './contexts/ToastContext';
 
 
 const TOKENS = {
@@ -22,8 +22,10 @@ const TOKENS = {
 
 
 function App() {
-  const [account, setAccount] = useState(null);
-  const [chainId, setChainId] = useState(null);
+  // Toast notifications
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
+
+  // App-specific state
   const [sellToken, setSellToken] = useState(TOKENS.USDC);
   const [buyToken, setBuyToken] = useState(TOKENS.WETH);
   const [amountUSDC, setAmountUSDC] = useState('');
@@ -36,7 +38,25 @@ function App() {
   const [planInfo, setPlanInfo] = useState(null);
   const [slippagePct, setSlippagePct] = useState('0.50');
   const [isSlippageAuto, setIsSlippageAuto] = useState(true);
-  const isCorrectNetwork = chainId === CHAIN_ID_HEX
+
+  // Function to clear app-specific state when wallet disconnects
+  const clearAppState = () => {
+    setPlanInfo(null)
+    setVaultUsdc('0')
+    setVaultWeth('0')
+  }
+
+  // Use the wallet hook for all wallet-related functionality
+  const {
+    account,
+    chainId,
+    isCorrectNetwork,
+    isConnecting,
+    connect,
+    connectDifferentWallet,
+    disconnect,
+    switchToLocal,
+  } = useWallet(clearAppState);
 
 
   const normalizePlan = (p) => ({
@@ -46,6 +66,8 @@ function App() {
     frequency: Number(p.frequency),             // fits u32 → number OK
     nextRunAt: Number(p.nextRunAt),             // fits u40 → number OK
     slippageBps: Number(p.slippageBps),         // u16 → number
+    totalExecutions: Number(p.totalExecutions), // u16 → number
+    executedCount: Number(p.executedCount),     // u16 → number
     active: Boolean(p.active),
   });
 
@@ -89,45 +111,64 @@ function App() {
     
     
     const depositUSDC = async (rawAmount) => {
-    const amount = toUnits(rawAmount, DECIMALS.USDC); // bigint
-    await ensureWallet();
-    await approveIfNeeded(ADDRS.USDC, ADDRS.VAULT, amount);
-    const vault = await getVault();
-    const tx = await vault.deposit(ADDRS.USDC, amount);
-    await tx.wait();
-    await refreshState(); 
-    return amount;
+    try {
+      const amount = toUnits(rawAmount, DECIMALS.USDC); // bigint
+      await ensureWallet();
+      await approveIfNeeded(ADDRS.USDC, ADDRS.VAULT, amount);
+      const vault = await getVault();
+      const tx = await vault.deposit(ADDRS.USDC, amount);
+      await tx.wait();
+      await refreshState(); 
+      showSuccess(`Successfully deposited ${rawAmount} USDC to vault!`);
+      return amount;
+    } catch (err) {
+      console.error(err);
+      showError(err?.message ?? 'Failed to deposit USDC');
+      throw err; // Re-throw so calling code can handle it
+    }
     };
     
     
-    const createDcaPlan = async (tokenIn, tokenOut, amountPerBuyUSDC, scheduleKey, slippageBps = 100) => {
+    const createDcaPlan = async (tokenIn, tokenOut, amountPerBuyUSDC, scheduleKey, slippageBps = 100, totalExecutions = 10) => {
     await ensureWallet();
     const vault = await getVault();
     const amountPerBuy = toUnits(amountPerBuyUSDC, DECIMALS.USDC);
     const frequency = FREQ[scheduleKey];
     if (!frequency) throw new Error('Invalid schedule');
     if (tokenIn === tokenOut) throw new Error('tokenIn == tokenOut');
-    const tx = await vault.createPlan(tokenIn, tokenOut, amountPerBuy, frequency, slippageBps);
+    const tx = await vault.createPlan(tokenIn, tokenOut, amountPerBuy, frequency, slippageBps, totalExecutions);
     await tx.wait();
     await refreshState(); 
     };
     
     
     const executeSelf = async () => {
-    await ensureWallet();
-    const vault = await getVault();
-    const tx = await vault.execute(account);
-    await tx.wait();
-    await refreshState(); 
+    try {
+      await ensureWallet();
+      const vault = await getVault();
+      const tx = await vault.execute(account);
+      await tx.wait();
+      await refreshState(); 
+      showSuccess('DCA plan executed successfully!');
+    } catch (err) {
+      console.error(err);
+      showError(err?.message ?? 'Failed to execute DCA plan');
+    }
     };
     
     
     const cancelPlan = async () => {
-    await ensureWallet();
-    const vault = await getVault();
-    const tx = await vault.cancelPlan();
-    await tx.wait();
-    await refreshState(); 
+    try {
+      await ensureWallet();
+      const vault = await getVault();
+      const tx = await vault.cancelPlan();
+      await tx.wait();
+      await refreshState(); 
+      showSuccess('DCA plan cancelled successfully!');
+    } catch (err) {
+      console.error(err);
+      showError(err?.message ?? 'Failed to cancel DCA plan');
+    }
     };
 
 
@@ -139,70 +180,6 @@ function App() {
     }, [account, chainId]);
 
 
-  // Setting up wallet listeners and events
-  useEffect(() => {
-    if (!window.ethereum) return;
-    let isMounted = true;
-
-
-    const handleAccountsChanged = (accs) => {
-    if (!isMounted) return;
-    setAccount(accs?.[0] ?? null);
-    // Optional: refreshState(); // re-read vault balances/plan
-    };
-
-
-    const handleChainChanged = (id) => {
-    if (!isMounted) return;
-    setChainId(id);
-    // Optional: if (id !== CHAIN_ID_HEX) prompt to switch or show banner
-    // Optional: refreshState();
-    };
-
-
-    const handleConnect = (info) => {
-    // info?.chainId may be provided (hex string)
-    // You can re-run reconcile here if desired
-    };
-
-
-    const handleDisconnect = (error) => {
-    if (!isMounted) return;
-    setAccount(null);
-    };
-
-
-    // Initial reconcile (silent, no popup)
-    (async () => {
-    try {
-    const accs = await window.ethereum.request({ method: 'eth_accounts' });
-    handleAccountsChanged(accs);
-    const id = await window.ethereum.request({ method: 'eth_chainId' });
-    handleChainChanged(id);
-    } catch (e) {
-    console.error('wallet reconcile failed', e);
-    }
-    })();
-
-
-    // Subscribe wallet events
-    window.ethereum.on('accountsChanged', handleAccountsChanged);
-    window.ethereum.on('chainChanged', handleChainChanged);
-    window.ethereum.on('connect', handleConnect);
-    window.ethereum.on('disconnect', handleDisconnect);
-
-
-    // Cleanup
-    return () => {
-    isMounted = false;
-    try {
-    window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-    window.ethereum.removeListener('chainChanged', handleChainChanged);
-    window.ethereum.removeListener('connect', handleConnect);
-    window.ethereum.removeListener('disconnect', handleDisconnect);
-    } catch {}
-    };
-}, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -225,37 +202,6 @@ function App() {
     }
   }, [sellToken, buyToken])
 
-  const connect = async () => {
-    if (!window.ethereum) {
-      alert('Wallet not found')
-      return
-    }
-    const accs = await window.ethereum.request({ method: 'eth_requestAccounts' })
-    setAccount(accs[0])
-    const id = await window.ethereum.request({ method: 'eth_chainId' })
-    setChainId(id)
-  }
-
-  const switchToLocal = async () => {
-    if (!window.ethereum) return
-    try {
-      await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN_ID_HEX }] })
-    } catch (err) {
-      if (err?.code === 4902) {
-        await window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [
-            {
-              chainId: CHAIN_ID_HEX,
-              chainName: 'Foundry Local',
-              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-              rpcUrls: ['http://127.0.0.1:8545'],
-            },
-          ],
-        })
-      }
-    }
-  }
 
   const handleTokenSelect = (tokenSymbol) => {
     setBuyToken(TOKENS[tokenSymbol])
@@ -292,12 +238,12 @@ function App() {
     const parsedPct = Number.parseFloat(slippagePct);
     const safePct = Number.isFinite(parsedPct) ? Math.max(0, Math.min(20, parsedPct)) : 0.5; // clamp 0–20%
     const slippageBps = Math.round(safePct * 100);
-    await createDcaPlan(tokenIn, tokenOut, amountUSDC, schedule, slippageBps);
+    await createDcaPlan(tokenIn, tokenOut, amountUSDC, schedule, slippageBps, numExecutions);
     
-    alert('Plan created! Vault will execute when due.');
+    showSuccess('DCA plan created successfully! Vault will execute when due.');
     } catch (err) {
     console.error(err);
-    alert(err?.message ?? 'Tx failed');
+    showError(err?.message ?? 'Transaction failed');
     }
     };
 
@@ -476,8 +422,11 @@ function App() {
       <NavBar 
         account={account}
         onConnect={connect}
+        onDisconnect={disconnect}
+        onConnectDifferent={connectDifferentWallet}
         onSwitchNetwork={switchToLocal}
         isCorrectNetwork={isCorrectNetwork}
+        isConnecting={isConnecting}
         onNavigate={setCurrentPage}
         currentPage={currentPage}
       />

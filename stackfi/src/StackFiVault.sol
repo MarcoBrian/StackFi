@@ -15,7 +15,8 @@ contract StackFiVault is Ownable , ReentrancyGuard{
   event PlanCancelled(address indexed user);
   event Deposited(address indexed user, address indexed token, uint256 amount); 
   event Withdrawn(address indexed user, address indexed token, uint256 amount);
-  event PlanCreated(address indexed user, address tokenIn, address tokenOut, uint256 amountPerBuy, uint256 frequency, uint256 slippageBps);
+  event PlanCreated(address indexed user, address tokenIn, address tokenOut, uint256 amountPerBuy, uint256 frequency, uint256 slippageBps, uint256 totalExecutions);
+  event PlanCompleted(address indexed user, address tokenIn, address tokenOut, uint256 totalExecuted);
   event Executed(address indexed user, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
 
   using SafeERC20 for IERC20;
@@ -36,6 +37,8 @@ contract StackFiVault is Ownable , ReentrancyGuard{
     uint32  frequency;
     uint40  nextRunAt;
     uint16  slippageBps;
+    uint16  totalExecutions;
+    uint16  executedCount;
     bool    active;
   }
 
@@ -121,14 +124,15 @@ function _swapUniV3(address tokenIn, address tokenOut, uint256 amountIn, uint256
   }
 
   // --- user: plan ---
-  function createPlan(address tokenIn, address tokenOut, uint128 amountPerBuy, uint32 frequency, uint16 slippageBps) external {
+  function createPlan(address tokenIn, address tokenOut, uint128 amountPerBuy, uint32 frequency, uint16 slippageBps, uint16 totalExecutions) external {
     require(assets[tokenIn].enabled && assets[tokenOut].enabled, "asset not allowed");
     require(amountPerBuy > 0, "invalid amount");
     require(frequency >= 1 days, "too frequent");
     require(tokenIn != tokenOut, "tokenIn == tokenOut");
+    require(totalExecutions > 0, "totalExecutions must be > 0");
 
-    plans[msg.sender] = DCAPlan(tokenIn, tokenOut, amountPerBuy, frequency, uint40(block.timestamp + frequency), slippageBps, true);
-    emit PlanCreated(msg.sender, tokenIn, tokenOut, amountPerBuy, frequency, slippageBps);
+    plans[msg.sender] = DCAPlan(tokenIn, tokenOut, amountPerBuy, frequency, uint40(block.timestamp + frequency), slippageBps, totalExecutions, 0, true);
+    emit PlanCreated(msg.sender, tokenIn, tokenOut, amountPerBuy, frequency, slippageBps, totalExecutions);
 
   }
 
@@ -143,7 +147,7 @@ function _swapUniV3(address tokenIn, address tokenOut, uint256 amountIn, uint256
 
   function isDue(address user) public view returns (bool) {
     DCAPlan storage p = plans[user];
-    return p.active && block.timestamp >= p.nextRunAt;
+    return p.active && block.timestamp >= p.nextRunAt && p.executedCount < p.totalExecutions;
   }
 
 
@@ -195,7 +199,17 @@ function _expectedOutFromOracles(address tokenIn, address tokenOut, uint256 amou
     balances[user][p.tokenIn]  -= amountIn;
     balances[user][p.tokenOut] += amountOut;
 
-    p.nextRunAt = uint40(block.timestamp + p.frequency);
+    // Increment execution count
+    p.executedCount += 1;
+
+    // Check if plan is completed
+    if (p.executedCount >= p.totalExecutions) {
+      p.active = false;
+      p.nextRunAt = 0;
+      emit PlanCompleted(user, p.tokenIn, p.tokenOut, p.executedCount);
+    } else {
+      p.nextRunAt = uint40(block.timestamp + p.frequency);
+    }
 
     emit Executed(user, p.tokenIn, p.tokenOut, amountIn, amountOut) ;
 

@@ -16,6 +16,8 @@ contract CheckPlan is Script {
     uint32  frequency,
     uint40  nextRunAt,
     uint16  slippageBps,
+    uint16  totalExecutions,
+    uint16  executedCount,
     bool    active) =
         vault.plans(user);
 
@@ -25,6 +27,8 @@ contract CheckPlan is Script {
         console.log("AmountPerBuy:", amountPerBuy);
         console.log("Frequency:", frequency);
         console.log("SlippageBps:", slippageBps);
+        console.log("TotalExecutions:", totalExecutions);
+        console.log("ExecutedCount:", executedCount);
         console.log("NextRunAt:", nextRunAt);
     }
 }

@@ -1,4 +1,3 @@
-
 export const STACKFI_VAULT_ABI = [
   {
     "type": "constructor",
@@ -132,6 +131,11 @@ export const STACKFI_VAULT_ABI = [
         "name": "slippageBps",
         "type": "uint16",
         "internalType": "uint16"
+      },
+      {
+        "name": "totalExecutions",
+        "type": "uint16",
+        "internalType": "uint16"
       }
     ],
     "outputs": [],
@@ -251,6 +255,16 @@ export const STACKFI_VAULT_ABI = [
       },
       {
         "name": "slippageBps",
+        "type": "uint16",
+        "internalType": "uint16"
+      },
+      {
+        "name": "totalExecutions",
+        "type": "uint16",
+        "internalType": "uint16"
+      },
+      {
+        "name": "executedCount",
         "type": "uint16",
         "internalType": "uint16"
       },
@@ -455,6 +469,37 @@ export const STACKFI_VAULT_ABI = [
   },
   {
     "type": "event",
+    "name": "PlanCompleted",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "tokenIn",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "tokenOut",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "totalExecuted",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "PlanCreated",
     "inputs": [
       {
@@ -489,6 +534,12 @@ export const STACKFI_VAULT_ABI = [
       },
       {
         "name": "slippageBps",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalExecutions",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"

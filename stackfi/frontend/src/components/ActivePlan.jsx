@@ -46,7 +46,25 @@ const ActivePlan = ({ planInfo, sellToken, buyToken, onExecute, onCancel }) => {
           <span className="label">Slippage</span>
           <span className="value">{planInfo.slippageBps} bps</span>
         </div>
+        <div className="plan-row">
+          <span className="label">Progress</span>
+          <span className="value">{planInfo.executedCount} / {planInfo.totalExecutions} executions</span>
+        </div>
       </div>
+
+      {planInfo.totalExecutions > 0 && (
+        <div className="progress-bar-container">
+          <div 
+            className="progress-bar" 
+            style={{ 
+              width: `${(planInfo.executedCount / planInfo.totalExecutions) * 100}%` 
+            }}
+          ></div>
+          <div className="progress-text">
+            {Math.round((planInfo.executedCount / planInfo.totalExecutions) * 100)}% Complete
+          </div>
+        </div>
+      )}
 
       <div className="plan-actions">
         <button onClick={onExecute} className="btn">Execute Now (Dev)</button>
