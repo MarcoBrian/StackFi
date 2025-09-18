@@ -1,8 +1,10 @@
+import { ethers } from 'ethers';
+
 export const CHAIN_ID_HEX = '0x7a69'; // foundry local (31337)
 
 
 export const ADDRS = {
-VAULT: '0xDB300ECCC442bE6e8027aE7f9E04ABcCFfd2Cc89',
+VAULT: '0x83737Ab6fC8BE5d9cc5135C83E77aFd01Ac0d7a5',
 USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
 WETH: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
 // Optional: Uniswap v3 router if you want to show it in UI
@@ -14,3 +16,12 @@ export const DECIMALS = {
 USDC: 6,
 WETH: 18,
 } as const;
+
+
+export const assertContract = async (addr) => {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const code = await provider.getCode(addr);
+    if (!code || code === '0x') {
+      throw new Error(`No contract deployed at ${addr} on this network`);
+    }
+  };

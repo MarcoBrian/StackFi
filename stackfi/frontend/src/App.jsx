@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import './App.css'
-import { ethers } from 'ethers'
 import NavBar from './components/NavBar'
 import About from './pages/About'
 import ActivePlan from './components/ActivePlan'
@@ -8,7 +7,7 @@ import usdcLogo from './assets/crypto-logo/usd-coin-usdc-logo.svg'
 import ethLogo from './assets/crypto-logo/ethereum-eth-logo.svg'
 import repeatIcon from './assets/repeat.svg'
 
-import { ADDRS, DECIMALS } from './config/addresses';
+import { ADDRS, DECIMALS, CHAIN_ID_HEX, assertContract } from './config/addresses';
 import { getVault, getErc20 } from './lib/contracts';
 import { toUnits, fromUnits } from './lib/units';
 import { useWallet } from './hooks/useWallet';
@@ -18,6 +17,11 @@ import { useToast } from './contexts/ToastContext';
 const TOKENS = {
     USDC: { symbol: 'USDC', decimals: DECIMALS.USDC, address: ADDRS.USDC, logo: usdcLogo },
     WETH: { symbol: 'WETH', decimals: DECIMALS.WETH, address: ADDRS.WETH, logo: ethLogo },
+};
+
+const FREQ = {
+  daily: 60 * 60 * 24,    // 24 hours in seconds
+  weekly: 60 * 60 * 24 * 7,  // 7 days in seconds
 };
 
 
@@ -38,6 +42,7 @@ function App() {
   const [planInfo, setPlanInfo] = useState(null);
   const [slippagePct, setSlippagePct] = useState('0.50');
   const [isSlippageAuto, setIsSlippageAuto] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Function to clear app-specific state when wallet disconnects
   const clearAppState = () => {
@@ -88,15 +93,46 @@ function App() {
 
 
   const ensureWallet = async () => {
-    if (!window.ethereum) throw new Error('Wallet not found');
-    if (!account) {
-    const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
-    setAccount(accs[0]);
+    if (!window.ethereum) {
+      const error = 'Wallet not found. Please install MetaMask or another Web3 wallet.';
+      console.error('ensureWallet:error', error);
+      throw new Error(error);
     }
-    const id = await window.ethereum.request({ method: 'eth_chainId' });
-    setChainId(id);
-    if (id !== CHAIN_ID_HEX) throw new Error('Wrong network');
-    };
+    
+    console.log('ensureWallet:start', { account, chainId, isCorrectNetwork });
+
+    if (!account) {
+      console.log('ensureWallet:connecting wallet...');
+      const ok = await connect();
+      console.log('ensureWallet:connect result', ok);
+      if (!ok) {
+        const error = 'Wallet connection was cancelled or failed. Please try again.';
+        console.error('ensureWallet:connection failed');
+        throw new Error(error);
+      }
+    }
+
+    // Re-check chainId after potential connection
+    const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+    console.log('ensureWallet:checking network', { 
+      currentChainId, 
+      expectedChainId: CHAIN_ID_HEX, 
+      match: currentChainId === CHAIN_ID_HEX 
+    });
+    
+    if (currentChainId !== CHAIN_ID_HEX) {
+      console.log('ensureWallet:switching to local network...');
+      const switched = await switchToLocal();
+      console.log('ensureWallet:switch result', switched);
+      if (!switched) {
+        const error = 'Please switch to the local network (Chain ID: 31337) in MetaMask';
+        console.error('ensureWallet:network switch failed');
+        throw new Error(error);
+      }
+    }
+
+    console.log('ensureWallet:success - wallet and network ready');
+  };
     
     
     const approveIfNeeded = async (tokenAddr, spender, amount) => {
@@ -110,23 +146,55 @@ function App() {
     };
     
     
-    const depositUSDC = async (rawAmount) => {
+  const depositUSDC = async (rawAmount, numExecutions) => {
     try {
-      const amount = toUnits(rawAmount, DECIMALS.USDC); // bigint
+      console.log('depositUSDC:start', { rawAmount });
+      const amount = toUnits(rawAmount * numExecutions, DECIMALS.USDC); // bigint
+      
+      console.log('depositUSDC:amount converted', { amount: amount.toString() });
+      
+      console.log('depositUSDC:ensuring wallet...');
       await ensureWallet();
+      
+      console.log('depositUSDC:checking contracts...');
+      await assertContract(ADDRS.USDC);
+      await assertContract(ADDRS.VAULT);
+
+      console.log('depositUSDC:checking approval...');
       await approveIfNeeded(ADDRS.USDC, ADDRS.VAULT, amount);
+      
+      console.log('depositUSDC:getting vault contract...');
       const vault = await getVault();
+      await assertContract(vault.target);
+      
+      console.log('depositUSDC:submitting deposit transaction...');
       const tx = await vault.deposit(ADDRS.USDC, amount);
-      await tx.wait();
+      console.log('depositUSDC:transaction submitted', { hash: tx.hash });
+      
+      console.log('depositUSDC:waiting for confirmation...');
+      const receipt = await tx.wait();
+      console.log('depositUSDC:transaction confirmed', { blockNumber: receipt.blockNumber });
+      
       await refreshState(); 
       showSuccess(`Successfully deposited ${rawAmount} USDC to vault!`);
+      console.log('depositUSDC:success');
       return amount;
     } catch (err) {
-      console.error(err);
-      showError(err?.message ?? 'Failed to deposit USDC');
+      console.error('depositUSDC:error', err);
+      
+      // More specific error messages
+      if (err.code === 4001) {
+        showError('Transaction was cancelled by user');
+      } else if (err.message?.includes('insufficient funds')) {
+        showError('Insufficient funds for transaction');
+      } else if (err.message?.includes('No contract deployed')) {
+        showError('Contract not found on this network. Make sure your local blockchain is running.');
+      } else {
+        showError(err?.message ?? 'Failed to deposit USDC');
+      }
       throw err; // Re-throw so calling code can handle it
     }
-    };
+  };
     
     
     const createDcaPlan = async (tokenIn, tokenOut, amountPerBuyUSDC, scheduleKey, slippageBps = 100, totalExecutions = 10) => {
@@ -219,33 +287,47 @@ function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
     try {
-    if (!account) throw new Error('Connect wallet first');
-    
-    // UI only supports USDC → WETH for now; extend as needed
-    const tokenIn = sellToken.address; // typically USDC
-    const tokenOut = buyToken.address; // typically WETH
-    
-    
-    if (!amountUSDC || Number(amountUSDC) <= 0) throw new Error('Enter amount');
-    
-    
-    // 1) approve & deposit to vault
-    await depositUSDC(amountUSDC);
-    
-    
-    // 2) create the plan with chosen slippage (percent → bps)
-    const parsedPct = Number.parseFloat(slippagePct);
-    const safePct = Number.isFinite(parsedPct) ? Math.max(0, Math.min(20, parsedPct)) : 0.5; // clamp 0–20%
-    const slippageBps = Math.round(safePct * 100);
-    await createDcaPlan(tokenIn, tokenOut, amountUSDC, schedule, slippageBps, numExecutions);
-    
-    showSuccess('DCA plan created successfully! Vault will execute when due.');
+      console.log('Starting submit flow...');
+      
+      if (!account) throw new Error('Connect wallet first');
+      console.log('Account connected:', account);
+
+      const tokenIn = sellToken.address;
+      const tokenOut = buyToken.address;
+      console.log('Tokens:', { tokenIn, tokenOut });
+
+      if (!amountUSDC || Number(amountUSDC) <= 0) throw new Error('Enter amount');
+      console.log('Amount valid:', amountUSDC);
+
+      console.log('Calling depositUSDC...');
+      await depositUSDC(amountUSDC, numExecutions);
+      console.log('Deposit successful');
+
+      const parsedPct = Number.parseFloat(slippagePct);
+      const safePct = Number.isFinite(parsedPct) ? Math.max(0, Math.min(20, parsedPct)) : 0.5;
+      const slippageBps = Math.round(safePct * 100);
+      console.log('Slippage bps:', slippageBps);
+
+      console.log('Calling createDcaPlan...');
+      await createDcaPlan(tokenIn, tokenOut, amountUSDC, schedule, slippageBps, numExecutions);
+      console.log('Plan created successfully');
+
+      showSuccess('DCA plan created successfully! Vault will execute when due.');
     } catch (err) {
-    console.error(err);
-    showError(err?.message ?? 'Transaction failed');
+      console.error('Submit error:', err);
+      if (err?.code === 4001) {
+        showInfo('Transaction cancelled.');
+      } else {
+        showError(err?.message ?? 'Transaction failed');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-    };
+  };
 
   const renderPage = () => {
     switch (currentPage) {
@@ -325,8 +407,18 @@ function App() {
                       step="0.01"
                       min="0"
                       placeholder="0.00"
+                      inputMode="decimal"
+                      pattern="^[0-9]*\\.?[0-9]*$"
                       value={amountUSDC}
-                      onChange={(e) => setAmountUSDC(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (['e','E','+','-'].includes(e.key)) e.preventDefault()
+                      }}
+                      onChange={(e) => {
+                        const v = e.target.value
+                          .replace(/[^\d.]/g, '')        // keep digits and dot
+                          .replace(/(\..*)\./g, '$1')    // only one dot
+                        setAmountUSDC(v)
+                      }}
                       required
                     />
                     <span className="unit">USD</span>
@@ -388,8 +480,8 @@ function App() {
                   </div>
                 </section>
 
-                <button type="submit" className="primary">
-                  Prepare Recurring Investment
+                <button type="submit" className="primary" disabled={isSubmitting}>
+                  {isSubmitting ? 'Processing…' : 'Prepare Recurring Investment'}
                 </button>
               </form>
             </div>

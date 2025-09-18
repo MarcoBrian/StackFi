@@ -221,7 +221,7 @@ export const useWallet = (onDisconnectCallback) => {
             params: [
               {
                 chainId: CHAIN_ID_HEX,
-                chainName: 'Foundry Local',
+                chainName: 'Local Hardhat',
                 nativeCurrency: {
                   name: 'Ethereum',
                   symbol: 'ETH',
