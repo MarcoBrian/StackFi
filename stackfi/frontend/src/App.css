@@ -35,6 +35,7 @@
 
 .card {
   padding: 2em;
+  margin-top: 2em;
 }
 
 .read-the-docs {
@@ -216,4 +217,175 @@
   font-weight: 600;
   color: #495057;
   z-index: 1;
+}
+
+/* Withdraw Component Styles */
+.withdraw-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e9ecef;
+}
+
+.withdraw-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  text-align: left;
+}
+
+.withdraw-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.withdraw-controls {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.withdraw-token-select {
+  flex: 1;
+  min-width: 140px;
+}
+
+.withdraw-token-select label,
+.withdraw-amount label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  text-align: left;
+  height: 20px; /* Ensure consistent label height */
+}
+
+.withdraw-amount {
+  flex: 2;
+  min-width: 200px;
+}
+
+.balance-info {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6c757d;
+  text-align: left;
+}
+
+.withdraw-button {
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 48px;
+}
+
+.withdraw-button:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.withdraw-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.withdraw-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Make withdraw dropdown work with existing dropdown styles */
+.withdraw-dropdown .dropdown-trigger,
+.withdraw-dropdown .dropdown-menu,
+.withdraw-dropdown .dropdown-item {
+  /* Inherit all existing dropdown styles */
+}
+
+@media (max-width: 768px) {
+  .withdraw-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .withdraw-token-select,
+  .withdraw-amount {
+    min-width: auto;
+  }
+}
+
+/* Balance List Styles */
+.balance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.balance-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.balance-item:hover {
+  background: #e9ecef;
+  border-color: #dee2e6;
+}
+
+.balance-token-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.balance-token-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.balance-token-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.balance-amount {
+  font-size: 16px;
+  font-weight: 600;
+  color: #495057;
+  text-align: right;
+}
+
+@media (max-width: 480px) {
+  .balance-item {
+    padding: 12px;
+  }
+  
+  .balance-token-name,
+  .balance-amount {
+    font-size: 14px;
+  }
+  
+  .balance-token-logo {
+    width: 20px;
+    height: 20px;
+  }
 }

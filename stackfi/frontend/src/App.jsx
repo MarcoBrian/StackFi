@@ -43,6 +43,12 @@ function App() {
   const [slippagePct, setSlippagePct] = useState('0.50');
   const [isSlippageAuto, setIsSlippageAuto] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Withdraw component state
+  const [withdrawToken, setWithdrawToken] = useState(TOKENS.USDC);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [isWithdrawDropdownOpen, setIsWithdrawDropdownOpen] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   // Function to clear app-specific state when wallet disconnects
   const clearAppState = () => {
@@ -239,6 +245,49 @@ function App() {
     }
     };
 
+    const withdrawFromVault = async (tokenAddress, amount) => {
+    try {
+      console.log('withdrawFromVault:start', { tokenAddress, amount });
+      
+      await ensureWallet();
+      
+      const vault = await getVault();
+      await assertContract(vault.target);
+      
+      const amountBigInt = toUnits(amount, withdrawToken.decimals);
+      console.log('withdrawFromVault:amount converted', { amount: amountBigInt.toString() });
+      
+      console.log('withdrawFromVault:submitting withdraw transaction...');
+      const tx = await vault.withdraw(tokenAddress, amountBigInt);
+      console.log('withdrawFromVault:transaction submitted', { hash: tx.hash });
+      
+      console.log('withdrawFromVault:waiting for confirmation...');
+      const receipt = await tx.wait();
+      console.log('withdrawFromVault:transaction confirmed', { blockNumber: receipt.blockNumber });
+      
+      await refreshState();
+      showSuccess(`Successfully withdrew ${amount} ${withdrawToken.symbol} from vault!`);
+      console.log('withdrawFromVault:success');
+      
+      // Clear withdraw form
+      setWithdrawAmount('');
+      
+    } catch (err) {
+      console.error('withdrawFromVault:error', err);
+      
+      if (err.code === 4001) {
+        showError('Transaction was cancelled by user');
+      } else if (err.message?.includes('insufficient')) {
+        showError('Insufficient balance in vault');
+      } else if (err.message?.includes('No contract deployed')) {
+        showError('Contract not found on this network. Make sure your local blockchain is running.');
+      } else {
+        showError(err?.message ?? 'Failed to withdraw from vault');
+      }
+      throw err;
+    }
+    };
+
 
     // Refresh when account / chain changes
     useEffect(() => {
@@ -249,16 +298,19 @@ function App() {
 
 
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (isDropdownOpen && !event.target.closest('.custom-dropdown')) {
         setIsDropdownOpen(false)
       }
+      if (isWithdrawDropdownOpen && !event.target.closest('.withdraw-dropdown')) {
+        setIsWithdrawDropdownOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isDropdownOpen])
+  }, [isDropdownOpen, isWithdrawDropdownOpen])
 
   // Auto-switch buy token if it becomes the same as sell token
   useEffect(() => {
@@ -276,6 +328,11 @@ function App() {
     setIsDropdownOpen(false)
   }
 
+  const handleWithdrawTokenSelect = (tokenSymbol) => {
+    setWithdrawToken(TOKENS[tokenSymbol])
+    setIsWithdrawDropdownOpen(false)
+  }
+
   const switchTokens = () => {
     const tempSellToken = sellToken
     setSellToken(buyToken)
@@ -284,6 +341,44 @@ function App() {
 
   // Get available tokens for the receive dropdown (exclude the sell token)
   const availableTokens = Object.values(TOKENS).filter(token => token.symbol !== sellToken.symbol)
+  
+  // Get all tokens for withdraw dropdown
+  const withdrawableTokens = Object.values(TOKENS)
+  
+  // Get current balance for selected withdraw token
+  const getCurrentWithdrawBalance = () => {
+    if (withdrawToken.symbol === 'USDC') return vaultUsdc
+    if (withdrawToken.symbol === 'WETH') return vaultWeth
+    return '0'
+  }
+  
+  const handleWithdrawSubmit = async (e) => {
+    e.preventDefault();
+    if (isWithdrawing) return;
+    
+    try {
+      if (!account) throw new Error('Connect wallet first');
+      if (!withdrawAmount || Number(withdrawAmount) <= 0) throw new Error('Enter withdraw amount');
+      
+      const currentBalance = Number(getCurrentWithdrawBalance());
+      if (Number(withdrawAmount) > currentBalance) {
+        throw new Error(`Insufficient balance. Available: ${currentBalance} ${withdrawToken.symbol}`);
+      }
+      
+      setIsWithdrawing(true);
+      await withdrawFromVault(withdrawToken.address, withdrawAmount);
+      
+    } catch (err) {
+      console.error('Withdraw submit error:', err);
+      if (err?.code === 4001) {
+        showInfo('Transaction cancelled.');
+      } else {
+        showError(err?.message ?? 'Withdraw failed');
+      }
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -489,8 +584,22 @@ function App() {
             {account && (
             <div className="card">
             <h3>Your Vault Balances</h3>
-            <div>USDC: {vaultUsdc}</div>
-            <div>WETH: {vaultWeth}</div>
+            <div className="balance-list">
+              <div className="balance-item">
+                <div className="balance-token-info">
+                  <img src={usdcLogo} alt="USDC" className="balance-token-logo" />
+                  <span className="balance-token-name">USDC</span>
+                </div>
+                <span className="balance-amount">{vaultUsdc} USDC</span>
+              </div>
+              <div className="balance-item">
+                <div className="balance-token-info">
+                  <img src={ethLogo} alt="WETH" className="balance-token-logo" />
+                  <span className="balance-token-name">WETH</span>
+                </div>
+                <span className="balance-amount">{vaultWeth} WETH</span>
+              </div>
+            </div>
 
             <ActivePlan 
               planInfo={planInfo}
@@ -500,7 +609,86 @@ function App() {
               onCancel={cancelPlan}
             />
 
-            
+            <div className="withdraw-section">
+              <h4>Withdraw from Vault</h4>
+              <form onSubmit={handleWithdrawSubmit} className="withdraw-form">
+                <div className="withdraw-controls">
+                  <div className="withdraw-token-select">
+                    <label>Token</label>
+                    <div className="custom-dropdown withdraw-dropdown">
+                      <div 
+                        className="dropdown-trigger" 
+                        onClick={() => setIsWithdrawDropdownOpen(!isWithdrawDropdownOpen)}
+                      >
+                        {withdrawToken.logo && <img src={withdrawToken.logo} alt={withdrawToken.symbol} className="token-logo" />}
+                        <span>{withdrawToken.symbol}</span>
+                        <svg 
+                          className={`dropdown-arrow ${isWithdrawDropdownOpen ? 'open' : ''}`} 
+                          width="12" 
+                          height="8" 
+                          viewBox="0 0 12 8" 
+                          fill="none"
+                        >
+                          <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      {isWithdrawDropdownOpen && (
+                        <div className="dropdown-menu">
+                          {withdrawableTokens.map((token) => (
+                            <div
+                              key={token.symbol}
+                              className={`dropdown-item ${withdrawToken.symbol === token.symbol ? 'selected' : ''}`}
+                              onClick={() => handleWithdrawTokenSelect(token.symbol)}
+                            >
+                              {token.logo && <img src={token.logo} alt={token.symbol} className="token-logo" />}
+                              <span>{token.symbol}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="withdraw-amount">
+                    <label>Amount</label>
+                    <div className="inputRow">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={getCurrentWithdrawBalance()}
+                        placeholder="0.00"
+                        inputMode="decimal"
+                        pattern="^[0-9]*\.?[0-9]*$"
+                        value={withdrawAmount}
+                        onKeyDown={(e) => {
+                          if (['e','E','+','-'].includes(e.key)) e.preventDefault()
+                        }}
+                        onChange={(e) => {
+                          const v = e.target.value
+                            .replace(/[^\d.]/g, '')        // keep digits and dot
+                            .replace(/(\..*)\./g, '$1')    // only one dot
+                          setWithdrawAmount(v)
+                        }}
+                        required
+                      />
+                      <span className="unit">{withdrawToken.symbol}</span>
+                    </div>
+                    <small className="balance-info">
+                      Available: {getCurrentWithdrawBalance()} {withdrawToken.symbol}
+                    </small>
+                  </div>
+                </div>
+                
+                <button 
+                  type="submit" 
+                  className="withdraw-button" 
+                  disabled={isWithdrawing || !withdrawAmount || Number(withdrawAmount) <= 0}
+                >
+                  {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                </button>
+              </form>
+            </div>
 
             </div>
             )}
