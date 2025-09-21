@@ -71,3 +71,5 @@ StackFi addresses this by bringing DCA on-chain with security, transparency, and
 **Check DCA Plan is Created** 
 
 `forge script script/CheckPlan.s.sol:CheckPlan --rpc-url http://127.0.0.1:8545`
+
+`forge script script/SkipTimeUpdateFeed.s.sol:SkipTimeUpdateFeed --rpc-url local --broadcast -vv`

@@ -202,7 +202,7 @@
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #007bff, #0056b3);
+  background: linear-gradient(90deg, silver, rgb(54, 54, 54));
   border-radius: 12px;
   transition: width 0.3s ease;
   position: relative;
@@ -387,5 +387,246 @@
   .balance-token-logo {
     width: 20px;
     height: 20px;
+  }
+}
+
+/* Progress Modal Styles */
+.progress-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.progress-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  min-width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.progress-modal h3 {
+  margin: 0 0 24px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+}
+
+.progress-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.step-indicator {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.progress-step.pending .step-indicator {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  color: #6c757d;
+}
+
+.progress-step.processing .step-indicator {
+  background: black;
+  border: 2px solid black;
+}
+
+.progress-step.completed .step-indicator {
+  background: #28a745;
+  border: 2px solid #28a745;
+  color: white;
+}
+
+.step-number {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.step-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.progress-step.pending .step-name {
+  color: #6c757d;
+}
+
+.progress-step.processing .step-name {
+  color: black;
+  font-weight: 600;
+}
+
+.progress-step.completed .step-name {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.checkmark {
+  color: white;
+}
+
+/* Spinner Animation */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Plan Preview Section */
+.plan-preview {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.plan-preview h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.plan-details p {
+  margin: 0 0 16px 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #555;
+}
+
+.plan-details strong {
+  color: #333;
+  font-weight: 600;
+}
+
+.plan-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+.summary-item .label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.summary-item .value {
+  font-size: 14px;
+  color: #333;
+  font-weight: 600;
+}
+
+/* Progress Complete Section */
+.progress-complete {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e9ecef;
+  text-align: center;
+}
+
+.success-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #28a745;
+}
+
+.success-icon {
+  flex-shrink: 0;
+}
+
+.done-button {
+  background: black;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.done-button:hover {
+  background: #333;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.done-button:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 480px) {
+  .progress-modal {
+    min-width: auto;
+    margin: 20px;
+    padding: 24px;
+  }
+  
+  .progress-modal h3 {
+    font-size: 18px;
+  }
+  
+  .step-name {
+    font-size: 14px;
+  }
+  
+  .step-indicator {
+    width: 28px;
+    height: 28px;
   }
 }

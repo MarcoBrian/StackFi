@@ -60,9 +60,9 @@ const ActivePlan = ({ planInfo, sellToken, buyToken, onExecute, onCancel }) => {
               width: `${(planInfo.executedCount / planInfo.totalExecutions) * 100}%` 
             }}
           ></div>
-          <div className="progress-text">
+          {/* <div className="progress-text">
             {Math.round((planInfo.executedCount / planInfo.totalExecutions) * 100)}% Complete
-          </div>
+          </div> */}
         </div>
       )}
 

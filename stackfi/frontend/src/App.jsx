@@ -49,6 +49,15 @@ function App() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isWithdrawDropdownOpen, setIsWithdrawDropdownOpen] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+  
+  // Progress modal state
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressSteps, setProgressSteps] = useState([
+    { id: 'approve', name: 'Approve USDC Spending', status: 'pending' },
+    { id: 'deposit', name: 'Deposit USDC to Vault', status: 'pending' },
+    { id: 'createPlan', name: 'Create DCA Plan', status: 'pending' }
+  ]);
+  const [isProcessComplete, setIsProcessComplete] = useState(false);
 
   // Function to clear app-specific state when wallet disconnects
   const clearAppState = () => {
@@ -56,6 +65,22 @@ function App() {
     setVaultUsdc('0')
     setVaultWeth('0')
   }
+
+  // Progress modal helper functions
+  const updateStepStatus = (stepId, status) => {
+    setProgressSteps(prev => prev.map(step => 
+      step.id === stepId ? { ...step, status } : step
+    ));
+  };
+
+  const resetProgressModal = () => {
+    setProgressSteps([
+      { id: 'approve', name: 'Approve USDC Spending', status: 'pending' },
+      { id: 'deposit', name: 'Deposit USDC to Vault', status: 'pending' },
+      { id: 'createPlan', name: 'Create DCA Plan', status: 'pending' }
+    ]);
+    setIsProcessComplete(false);
+  };
 
   // Use the wallet hook for all wallet-related functionality
   const {
@@ -155,7 +180,8 @@ function App() {
   const depositUSDC = async (rawAmount, numExecutions) => {
     try {
       console.log('depositUSDC:start', { rawAmount });
-      const amount = toUnits(rawAmount * numExecutions, DECIMALS.USDC); // bigint
+      const totalDeposit = rawAmount * numExecutions;
+      const amount = toUnits(totalDeposit, DECIMALS.USDC); // bigint
       
       console.log('depositUSDC:amount converted', { amount: amount.toString() });
       
@@ -182,21 +208,22 @@ function App() {
       console.log('depositUSDC:transaction confirmed', { blockNumber: receipt.blockNumber });
       
       await refreshState(); 
-      showSuccess(`Successfully deposited ${rawAmount} USDC to vault!`);
+      showSuccess(`Successfully deposited ${totalDeposit} USDC to vault!`);
       console.log('depositUSDC:success');
       return amount;
     } catch (err) {
       console.error('depositUSDC:error', err);
       
       // More specific error messages
-      if (err.code === 4001) {
+      if (err.code === "ACTION_REJECTED") {
         showError('Transaction was cancelled by user');
       } else if (err.message?.includes('insufficient funds')) {
         showError('Insufficient funds for transaction');
       } else if (err.message?.includes('No contract deployed')) {
         showError('Contract not found on this network. Make sure your local blockchain is running.');
       } else {
-        showError(err?.message ?? 'Failed to deposit USDC');
+        console.log(err)
+        showError('Failed to deposit USDC');
       }
       throw err; // Re-throw so calling code can handle it
     }
@@ -226,7 +253,7 @@ function App() {
       showSuccess('DCA plan executed successfully!');
     } catch (err) {
       console.error(err);
-      showError(err?.message ?? 'Failed to execute DCA plan');
+      showError('Failed to execute DCA plan');
     }
     };
     
@@ -275,14 +302,14 @@ function App() {
     } catch (err) {
       console.error('withdrawFromVault:error', err);
       
-      if (err.code === 4001) {
+      if (err.code === "ACTION_REJECTED") {
         showError('Transaction was cancelled by user');
       } else if (err.message?.includes('insufficient')) {
         showError('Insufficient balance in vault');
       } else if (err.message?.includes('No contract deployed')) {
         showError('Contract not found on this network. Make sure your local blockchain is running.');
       } else {
-        showError(err?.message ?? 'Failed to withdraw from vault');
+        showError('Failed to withdraw from vault');
       }
       throw err;
     }
@@ -351,6 +378,16 @@ function App() {
     if (withdrawToken.symbol === 'WETH') return vaultWeth
     return '0'
   }
+
+  // Helper function to get the appropriate step value for a token's decimals
+  const getStepValue = (decimals) => {
+    return `0.${'0'.repeat(decimals - 1)}1`
+  }
+
+  // Helper function to get the appropriate placeholder for a token's decimals
+  const getPlaceholderValue = (decimals) => {
+    return `0.${'0'.repeat(decimals)}`
+  }
   
   const handleWithdrawSubmit = async (e) => {
     e.preventDefault();
@@ -370,10 +407,11 @@ function App() {
       
     } catch (err) {
       console.error('Withdraw submit error:', err);
-      if (err?.code === 4001) {
-        showInfo('Transaction cancelled.');
+      if (err?.code === "ACTION_REJECTED") {
+        showInfo('Transaction cancelled by user');
       } else {
-        showError(err?.message ?? 'Withdraw failed');
+        console.log(err)
+        showError('Withdraw failed');
       }
     } finally {
       setIsWithdrawing(false);
@@ -383,6 +421,10 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSubmitting) return;
+    
+    // Show progress modal immediately
+    setShowProgressModal(true);
+    resetProgressModal();
     setIsSubmitting(true);
     
     try {
@@ -398,10 +440,31 @@ function App() {
       if (!amountUSDC || Number(amountUSDC) <= 0) throw new Error('Enter amount');
       console.log('Amount valid:', amountUSDC);
 
-      console.log('Calling depositUSDC...');
-      await depositUSDC(amountUSDC, numExecutions);
-      console.log('Deposit successful');
+      const amount = toUnits(amountUSDC * numExecutions, DECIMALS.USDC);
 
+      // Step 1: Approve USDC
+      updateStepStatus('approve', 'processing');
+      console.log('Checking USDC approval...');
+      await ensureWallet();
+      await assertContract(ADDRS.USDC);
+      await assertContract(ADDRS.VAULT);
+      await approveIfNeeded(ADDRS.USDC, ADDRS.VAULT, amount);
+      console.log('Approval complete');
+      updateStepStatus('approve', 'completed');
+
+      // Step 2: Deposit USDC
+      updateStepStatus('deposit', 'processing');
+      console.log('Depositing USDC...');
+      const vault = await getVault();
+      await assertContract(vault.target);
+      const tx = await vault.deposit(ADDRS.USDC, amount);
+      await tx.wait();
+      await refreshState();
+      console.log('Deposit successful');
+      updateStepStatus('deposit', 'completed');
+
+      // Step 3: Create DCA Plan
+      updateStepStatus('createPlan', 'processing');
       const parsedPct = Number.parseFloat(slippagePct);
       const safePct = Number.isFinite(parsedPct) ? Math.max(0, Math.min(20, parsedPct)) : 0.5;
       const slippageBps = Math.round(safePct * 100);
@@ -410,14 +473,22 @@ function App() {
       console.log('Calling createDcaPlan...');
       await createDcaPlan(tokenIn, tokenOut, amountUSDC, schedule, slippageBps, numExecutions);
       console.log('Plan created successfully');
+      updateStepStatus('createPlan', 'completed');
 
+      // All steps completed
+      setIsProcessComplete(true);
       showSuccess('DCA plan created successfully! Vault will execute when due.');
     } catch (err) {
       console.error('Submit error:', err);
-      if (err?.code === 4001) {
-        showInfo('Transaction cancelled.');
+      
+      // Close modal and show error via toast
+      setShowProgressModal(false);
+      
+      if (err.code === "ACTION_REJECTED") {
+        showInfo('Transaction cancelled by user');
       } else {
-        showError(err?.message ?? 'Transaction failed');
+        console.log(err);
+        showError('Transaction failed');
       }
     } finally {
       setIsSubmitting(false);
@@ -433,7 +504,7 @@ function App() {
         return (
           <>
             <h1 className="title">DCA Strategy On-Chain</h1>
-            <p className="subtitle">Stack and grow your portfolio automatically</p>
+            <p className="subtitle">Stack and grow your crypto portfolio automatically</p>
 
             <div className="card">
               <form onSubmit={handleSubmit} className="form">
@@ -499,9 +570,9 @@ function App() {
                   <div className="inputRow">
                     <input
                       type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
+                      step={getStepValue(sellToken.decimals)}
+                      min=""
+                      placeholder={getPlaceholderValue(sellToken.decimals)}
                       inputMode="decimal"
                       pattern="^[0-9]*\\.?[0-9]*$"
                       value={amountUSDC}
@@ -516,7 +587,7 @@ function App() {
                       }}
                       required
                     />
-                    <span className="unit">USD</span>
+                    <span className="unit">{sellToken.symbol}</span>
                   </div>
                 </section>
 
@@ -576,7 +647,7 @@ function App() {
                 </section>
 
                 <button type="submit" className="primary" disabled={isSubmitting}>
-                  {isSubmitting ? 'Processing…' : 'Prepare Recurring Investment'}
+                  {isSubmitting ? 'Processing…' : 'Start Plan'}
                 </button>
               </form>
             </div>
@@ -654,10 +725,10 @@ function App() {
                     <div className="inputRow">
                       <input
                         type="number"
-                        step="0.01"
+                        step={getStepValue(withdrawToken.decimals)}
                         min="0"
                         max={getCurrentWithdrawBalance()}
-                        placeholder="0.00"
+                        placeholder={getPlaceholderValue(withdrawToken.decimals)}
                         inputMode="decimal"
                         pattern="^[0-9]*\.?[0-9]*$"
                         value={withdrawAmount}
@@ -714,6 +785,74 @@ function App() {
       <div className="container">
         {renderPage()}
       </div>
+      
+      {/* Progress Modal */}
+      {showProgressModal && (
+        <div className="progress-modal-overlay">
+          <div className="progress-modal">
+            <h3>Creating DCA Plan</h3>
+            
+            {/* Plan Preview */}
+            <div className="plan-preview">
+              <h4>Plan Preview</h4>
+              <div className="plan-details">
+                <p>
+                  This plan will invest <strong>{amountUSDC} {sellToken.symbol}</strong> into <strong>{buyToken.symbol}</strong> every {schedule === 'daily' ? 'day' : 'Monday'}, for <strong>{numExecutions} executions</strong>.
+                </p>
+                <div className="plan-summary">
+                  <div className="summary-item">
+                    <span className="label">Total Investment:</span>
+                    <span className="value">{(Number(amountUSDC) * numExecutions).toFixed(6)} {sellToken.symbol}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="label">Max Slippage:</span>
+                    <span className="value">{slippagePct}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="progress-steps">
+              {progressSteps.map((step, index) => (
+                <div key={step.id} className={`progress-step ${step.status}`}>
+                  <div className="step-indicator">
+                    {step.status === 'completed' && (
+                      <svg className="checkmark" width="20" height="20" viewBox="0 0 20 20">
+                        <path d="M7 10L9 12L13 8" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                    {step.status === 'processing' && (
+                      <div className="spinner"></div>
+                    )}
+                    {step.status === 'pending' && (
+                      <div className="step-number">{index + 1}</div>
+                    )}
+                  </div>
+                  <span className="step-name">{step.name}</span>
+                </div>
+              ))}
+            </div>
+            
+            {isProcessComplete && (
+              <div className="progress-complete">
+                <div className="success-message">
+                  <svg className="success-icon" width="24" height="24" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" fill="#28a745"/>
+                    <path d="M8 12L11 15L16 9" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>DCA Plan Created Successfully!</span>
+                </div>
+                <button 
+                  className="done-button" 
+                  onClick={() => setShowProgressModal(false)}
+                >
+                  Done
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

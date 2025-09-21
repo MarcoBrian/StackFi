@@ -4,7 +4,7 @@ export const CHAIN_ID_HEX = '0x7a69'; // foundry local (31337)
 
 
 export const ADDRS = {
-VAULT: '0x83737Ab6fC8BE5d9cc5135C83E77aFd01Ac0d7a5',
+VAULT: '0xD9DcFF30dDc709877794bFBe6D18F57E68DFbdbf',
 USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
 WETH: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
 // Optional: Uniswap v3 router if you want to show it in UI
