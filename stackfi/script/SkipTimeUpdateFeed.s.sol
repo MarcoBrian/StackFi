@@ -28,7 +28,7 @@ contract SkipTimeUpdateFeed is Script {
         console.log("After warp - block.timestamp:", block.timestamp);
         
         MockV3Aggregator(MOCK_USDC_USD).updateAnswer(1e8);
-        MockV3Aggregator(MOCK_ETH_USD).updateAnswer(4500e8);
+        MockV3Aggregator(MOCK_ETH_USD).updateAnswer(3100e8);
         
         vm.stopBroadcast();
     }

@@ -7,7 +7,7 @@ import usdcLogo from './assets/crypto-logo/usd-coin-usdc-logo.svg'
 import ethLogo from './assets/crypto-logo/ethereum-eth-logo.svg'
 import repeatIcon from './assets/repeat.svg'
 
-import { ADDRS, DECIMALS, CHAIN_ID_HEX, assertContract } from './config/addresses';
+import { ADDRS, DECIMALS, CHAIN_ID_HEX, NETWORKS, CURRENT_NETWORK, assertContract } from './config/addresses';
 import { getVault, getErc20 } from './lib/contracts';
 import { toUnits, fromUnits } from './lib/units';
 import { useWallet } from './hooks/useWallet';
@@ -91,7 +91,9 @@ function App() {
     connect,
     connectDifferentWallet,
     disconnect,
+    switchToNetwork,
     switchToLocal,
+    switchToBaseSepolia,
   } = useWallet(clearAppState);
 
 
@@ -152,11 +154,18 @@ function App() {
     });
     
     if (currentChainId !== CHAIN_ID_HEX) {
-      console.log('ensureWallet:switching to local network...');
-      const switched = await switchToLocal();
+      console.log('ensureWallet:switching to correct network...');
+      // Try to switch to the current network based on configuration
+      const networkEnv = import.meta.env.VITE_NETWORK || 'local';
+      const targetNetwork = networkEnv === 'base-sepolia' 
+        ? NETWORKS.BASE_SEPOLIA 
+        : NETWORKS.LOCAL;
+      
+      const switched = await switchToNetwork(targetNetwork);
       console.log('ensureWallet:switch result', switched);
       if (!switched) {
-        const error = 'Please switch to the local network (Chain ID: 31337) in MetaMask';
+        const networkName = targetNetwork.name;
+        const error = `Please switch to ${networkName} (Chain ID: ${targetNetwork.chainId}) in MetaMask`;
         console.error('ensureWallet:network switch failed');
         throw new Error(error);
       }
@@ -776,10 +785,12 @@ function App() {
         onDisconnect={disconnect}
         onConnectDifferent={connectDifferentWallet}
         onSwitchNetwork={switchToLocal}
+        switchToBaseSepolia={switchToBaseSepolia}
         isCorrectNetwork={isCorrectNetwork}
         isConnecting={isConnecting}
         onNavigate={setCurrentPage}
         currentPage={currentPage}
+        currentNetwork={CURRENT_NETWORK.name}
       />
       
       <div className="container">

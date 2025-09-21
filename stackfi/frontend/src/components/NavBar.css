@@ -84,6 +84,134 @@
   gap: 12px;
 }
 
+/* Network Dropdown Styles */
+.network-dropdown {
+  position: relative;
+}
+
+.network-selector {
+  background: var(--silver-light);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s ease;
+  min-width: 140px;
+}
+
+.network-selector:hover {
+  background: var(--silver);
+}
+
+.network-selector:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.network-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.network-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.network-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.network-indicator.connected {
+  background: #10b981; /* Green for connected */
+}
+
+.network-indicator.disconnected {
+  background: #f59e0b; /* Orange for wrong network */
+}
+
+.network-name {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.network-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  min-width: 220px;
+  z-index: 1001;
+  margin-top: 4px;
+}
+
+.network-dropdown-item {
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.network-dropdown-item:hover {
+  background: var(--silver-light);
+}
+
+.network-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.network-option-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.network-option-indicator.local {
+  background: #6366f1; /* Purple for local */
+}
+
+.network-option-indicator.base-sepolia {
+  background: #0052ff; /* Blue for Base */
+}
+
+.network-option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.network-option-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.network-option-chain {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .wallet-dropdown {
   position: relative;
 }
@@ -170,8 +298,19 @@
   text-align: center;
 }
 
+.mobile-network-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--silver-light);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text);
+}
+
 .mobile-network,
-.mobile-switch,
 .mobile-disconnect {
   width: 100%;
   justify-content: center;

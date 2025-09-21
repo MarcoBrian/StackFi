@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { CHAIN_ID_HEX } from '../config/addresses'
+import { CHAIN_ID_HEX, NETWORKS } from '../config/addresses'
 import { useToast } from '../contexts/ToastContext'
 
 export const useWallet = (onDisconnectCallback) => {
@@ -203,14 +203,14 @@ export const useWallet = (onDisconnectCallback) => {
     }, 1000) // Small delay to show success message first
   }, [onDisconnectCallback, showSuccess, showInfo])
 
-  // Switch network function
-  const switchToLocal = useCallback(async () => {
+  // Enhanced network switching function
+  const switchToNetwork = useCallback(async (targetNetwork) => {
     if (!window.ethereum) return false
     
     try {
       await window.ethereum.request({ 
         method: 'wallet_switchEthereumChain', 
-        params: [{ chainId: CHAIN_ID_HEX }] 
+        params: [{ chainId: targetNetwork.chainIdHex }] 
       })
       return true
     } catch (err) {
@@ -220,15 +220,15 @@ export const useWallet = (onDisconnectCallback) => {
             method: 'wallet_addEthereumChain',
             params: [
               {
-                chainId: CHAIN_ID_HEX,
-                chainName: 'Local Hardhat',
+                chainId: targetNetwork.chainIdHex,
+                chainName: targetNetwork.name,
                 nativeCurrency: {
                   name: 'Ethereum',
                   symbol: 'ETH',
                   decimals: 18,
                 },
-                rpcUrls: ['http://127.0.0.1:8545'],
-                blockExplorerUrls: null,
+                rpcUrls: [targetNetwork.rpcUrl],
+                blockExplorerUrls: targetNetwork.blockExplorerUrl ? [targetNetwork.blockExplorerUrl] : null,
               },
             ],
           })
@@ -243,6 +243,16 @@ export const useWallet = (onDisconnectCallback) => {
       }
     }
   }, [])
+
+  // Keep the old function for backward compatibility
+  const switchToLocal = useCallback(async () => {
+    return await switchToNetwork(NETWORKS.LOCAL)
+  }, [switchToNetwork])
+
+  // New function to switch to Base Sepolia
+  const switchToBaseSepolia = useCallback(async () => {
+    return await switchToNetwork(NETWORKS.BASE_SEPOLIA)
+  }, [switchToNetwork])
 
   // Setup wallet event listeners
   useEffect(() => {
@@ -360,5 +370,7 @@ export const useWallet = (onDisconnectCallback) => {
     connectDifferentWallet,
     disconnect,
     switchToLocal,
+    switchToBaseSepolia, // New function
+    switchToNetwork, // Generic function
   }
 }

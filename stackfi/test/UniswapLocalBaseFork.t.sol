@@ -11,6 +11,7 @@ import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IQuoterV2.sol";
 
+
 // 0.8-safe TickMath from v4
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 
@@ -103,7 +104,12 @@ contract UniswapLocalPair_Mocks is Test {
                 deadline: block.timestamp + 3600
             });
 
-        INonfungiblePositionManager(NFPM).mint(mp);
+        (uint256 tokenId, uint128 liquidity, uint256 amt0, uint256 amt1) = INonfungiblePositionManager(NFPM).mint(mp);
+
+        console.log("tokenId:", tokenId);
+        console.log("liquidity:", liquidity);
+        console.log("amt0:", amt0);
+        console.log("amt1:", amt1);
     }
 
 

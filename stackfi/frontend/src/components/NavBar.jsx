@@ -1,22 +1,48 @@
 import { useState, useEffect, useRef } from 'react'
 import './NavBar.css'
 
-function NavBar({ account, onConnect, onDisconnect, onConnectDifferent, onSwitchNetwork, isCorrectNetwork, isConnecting, onNavigate, currentPage }) {
+function NavBar({ 
+  account, 
+  onConnect, 
+  onDisconnect, 
+  onConnectDifferent, 
+  onSwitchNetwork, 
+  switchToBaseSepolia, 
+  isCorrectNetwork, 
+  isConnecting, 
+  onNavigate, 
+  currentPage,
+  currentNetwork = 'Local Hardhat' // New prop with default
+}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isWalletDropdownOpen, setIsWalletDropdownOpen] = useState(false)
-  const dropdownRef = useRef(null)
+  const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false)
+  const walletDropdownRef = useRef(null)
+  const networkDropdownRef = useRef(null)
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (walletDropdownRef.current && !walletDropdownRef.current.contains(event.target)) {
         setIsWalletDropdownOpen(false)
+      }
+      if (networkDropdownRef.current && !networkDropdownRef.current.contains(event.target)) {
+        setIsNetworkDropdownOpen(false)
       }
     }
     
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  const handleNetworkSwitch = async (networkType) => {
+    setIsNetworkDropdownOpen(false)
+    if (networkType === 'local') {
+      await onSwitchNetwork()
+    } else if (networkType === 'base-sepolia') {
+      await switchToBaseSepolia()
+    }
+  }
 
   return (
     <nav className="navbar">
@@ -45,14 +71,53 @@ function NavBar({ account, onConnect, onDisconnect, onConnectDifferent, onSwitch
           <div className="navbar-actions">
             {account ? (
               <div className="wallet-info">
-                <button 
-                  className="btn outline small" 
-                  onClick={onSwitchNetwork}
-                  disabled={!account}
-                >
-                  {isCorrectNetwork ? 'Foundry Local' : 'Switch Network'}
-                </button>
-                <div className="wallet-dropdown" ref={dropdownRef}>
+                {/* Network Selector Dropdown */}
+                <div className="network-dropdown" ref={networkDropdownRef}>
+                  <button 
+                    className="network-selector"
+                    onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
+                    disabled={!account}
+                  >
+                    <div className="network-info">
+                      <div className="network-status">
+                        <div className={`network-indicator ${isCorrectNetwork ? 'connected' : 'disconnected'}`}></div>
+                        <span className="network-name">{currentNetwork}</span>
+                      </div>
+                    </div>
+                    <span className={`dropdown-arrow ${isNetworkDropdownOpen ? 'open' : ''}`}>▼</span>
+                  </button>
+                  {isNetworkDropdownOpen && (
+                    <div className="network-dropdown-menu">
+                      <button 
+                        className="network-dropdown-item"
+                        onClick={() => handleNetworkSwitch('local')}
+                      >
+                        <div className="network-option">
+                          <div className="network-option-indicator local"></div>
+                          <div className="network-option-info">
+                            <span className="network-option-name">Local Hardhat</span>
+                            <span className="network-option-chain">Chain ID: 31337</span>
+                          </div>
+                        </div>
+                      </button>
+                      <button 
+                        className="network-dropdown-item"
+                        onClick={() => handleNetworkSwitch('base-sepolia')}
+                      >
+                        <div className="network-option">
+                          <div className="network-option-indicator base-sepolia"></div>
+                          <div className="network-option-info">
+                            <span className="network-option-name">Base Sepolia</span>
+                            <span className="network-option-chain">Chain ID: 84532</span>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Wallet Dropdown */}
+                <div className="wallet-dropdown" ref={walletDropdownRef}>
                   <button 
                     className="account-display"
                     onClick={() => setIsWalletDropdownOpen(!isWalletDropdownOpen)}
@@ -131,20 +196,27 @@ function NavBar({ account, onConnect, onDisconnect, onConnectDifferent, onSwitch
               <div className="mobile-account">
                 {account.slice(0, 6)}...{account.slice(-4)}
               </div>
+              <div className="mobile-network-status">
+                <div className={`network-indicator ${isCorrectNetwork ? 'connected' : 'disconnected'}`}></div>
+                <span>Current: {currentNetwork}</span>
+              </div>
               <button 
                 className="btn outline small mobile-network"
-                onClick={onSwitchNetwork}
-              >
-                {isCorrectNetwork ? 'Foundry Local' : 'Switch Network'}
-              </button>
-              <button 
-                className="btn outline small mobile-switch"
                 onClick={() => {
-                  onConnectDifferent()
+                  handleNetworkSwitch('local')
                   setIsMenuOpen(false)
                 }}
               >
-                Switch Account
+                Switch to Local Hardhat
+              </button>
+              <button 
+                className="btn outline small mobile-network"
+                onClick={() => {
+                  handleNetworkSwitch('base-sepolia')
+                  setIsMenuOpen(false)
+                }}
+              >
+                Switch to Base Sepolia
               </button>
               <button 
                 className="btn outline small mobile-disconnect"
