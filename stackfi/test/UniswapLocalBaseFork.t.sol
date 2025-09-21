@@ -49,8 +49,8 @@ contract UniswapLocalPair_Mocks is Test {
         mockUSDC = new MockERC20("Mock USDC", "mUSDC", 6);
         mockWETH = new MockERC20("Mock WETH", "mWETH", 18);
 
-        mockUSDC.mint(address(this), 5_000_000 * 1e6); // +5m USDC
-        mockWETH.mint(address(this), 1_000 ether);      // +1000 WETH
+        mockUSDC.mint(address(this), 50_000_000 * 1e6); // +5m USDC
+        mockWETH.mint(address(this), 10_000 ether);      // +1000 WETH
         mockUSDC.mint(user, 6000e6); 
 
         // 2) Sort tokens for v3
@@ -78,9 +78,9 @@ contract UniswapLocalPair_Mocks is Test {
         int24 hi = center + 120; // two steps above
         require(lo < hi, "bad ticks");
 
-        // Roughly match 3000 ratio: 10 WETH ↔ 30,000 USDC
-        uint256 wethAmt = 100 ether;
-        uint256 usdcAmt = 300_000 * 1e6;
+        // Roughly match 3000 ratio: 1000 WETH ↔ 3000,000 USDC
+        uint256 wethAmt = 1000 ether;
+        uint256 usdcAmt = 3_000_000 * 1e6;
 
         uint256 amount0Desired = (token0 == address(mockWETH)) ? wethAmt : usdcAmt;
         uint256 amount1Desired = (token0 == address(mockWETH)) ? usdcAmt : wethAmt;
