@@ -67,7 +67,7 @@ const ActivePlan = ({ planInfo, sellToken, buyToken, onExecute, onCancel }) => {
       )}
 
       <div className="plan-actions">
-        <button onClick={onExecute} className="btn">Execute Now (Dev)</button>
+        {/* <button onClick={onExecute} className="btn">Execute Now (Dev)</button> */}
         <button onClick={onCancel} className="btn outline">Cancel Plan</button>
       </div>
     </div>

@@ -50,6 +50,7 @@ function NavBar({
         <div className="navbar-brand">
           <img src="/logo.png" alt="StackFi Logo" className="navbar-logo" />
           <h2>StackFi</h2>
+          <span className="beta-badge" > Testnet Beta </span>
         </div>
         
         <div className="navbar-menu">
