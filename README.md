@@ -72,4 +72,38 @@ StackFi addresses this by bringing DCA on-chain with security, transparency, and
 
 `forge script script/CheckPlan.s.sol:CheckPlan --rpc-url http://127.0.0.1:8545`
 
-`forge script script/SkipTimeUpdateFeed.s.sol:SkipTimeUpdateFeed --rpc-url local --broadcast -vv`
+## Development Tool - Update foundry blocktime for advancing DCA
+1. `cast rpc evm_increaseTime 86400 --rpc-url http://127.0.0.1:8545`
+2. `cast rpc evm_mine --rpc-url http://127.0.0.1:8545`
+3. `forge script script/SkipTimeUpdateFeed.s.sol:SkipTimeUpdateFeed --rpc-url local --broadcast -vv`
+
+
+## Run Tests
+
+1. StackFiVaultMock
+`forge test --match-path "test/StackFiVaultMock.t.sol" -vvvv` 
+
+2. StackFiVaultUpkeep
+`forge test --match-path "test/StackFiVaultUpkeep.t.sol" --fork-url mainnet -vvvv` 
+
+3. SwapExamples
+`forge test --match-path "test/SwapExamples.t.sol" --fork-url mainnet -vvvv` 
+
+4. SwapExamplesBaseSepolia
+`forge test --match-path "test/SwapExamplesBaseSepolia.t.sol" --fork-url base-sepolia -vvvv` 
+
+5. UniswapLocalBaseFork
+`forge test --match-path "test/UniswapLocalBaseFork.t.sol" --fork-url base-sepolia -vvvv` 
+
+
+
+# Start deploying and running locally (Base Sepolia Fork)
+
+**Start a local Anvil node**
+`anvil --fork-url base-sepolia --chain-id 31337 --block-time 1`
+
+**Deploy Base Sepolia Pool**
+`forge script script/UniswapDeployPoolBaseSepolia.s.sol:UniswapDeployPoolBaseSepolia --rpc-url http://127.0.0.1:8545 --broadcast`
+
+**Deploy Vault in Base Sepolia**
+`forge script script/DeployVaultBaseSepoliaFork.sol:DeployVaultBaseSepoliaFork --rpc-url http://127.0.0.1:8545 --broadcast`
