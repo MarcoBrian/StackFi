@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import NavBar from '../components/NavBar'
 import './Landing.css'
 import { CURRENT_NETWORK } from '../config/addresses'
@@ -36,8 +37,8 @@ function Landing() {
               <h1 className="landing-title">Automated Dollar Cost Averaging On-Chain</h1>
               <p className="landing-subtitle">Stack and grow your crypto portfolio automatically with transparent smart contracts.</p>
               <div className="landing-cta">
-                <a className="btn" href="/app">Launch App</a>
-                <a className="btn outline" href="/about">How it works</a>
+                <Link className="btn" to="/app">Launch App</Link>
+                <Link className="btn outline" to="/about">How it works</Link>
               </div>
             </div>
             <div className="hero-visual">
@@ -63,8 +64,8 @@ function Landing() {
         <div className="landing-container">
           <span>© {new Date().getFullYear()} StackFi</span>
           <div className="footer-links">
-            <a href="/app">App</a>
-            <a href="/about">How it works</a>
+            <Link to="/app">App</Link>
+            <Link to="/about">How it works</Link>
           </div>
         </div>
       </footer>
