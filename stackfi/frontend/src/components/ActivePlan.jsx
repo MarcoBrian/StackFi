@@ -1,4 +1,4 @@
-import { fromUnits } from '../lib/units';
+import { fromUnits } from '../utils/units';
 import { DECIMALS } from '../config/addresses';
 
 const FREQ = {
