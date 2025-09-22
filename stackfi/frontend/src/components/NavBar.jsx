@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import './NavBar.css'
 
 function NavBar({ 
@@ -19,6 +20,9 @@ function NavBar({
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false)
   const walletDropdownRef = useRef(null)
   const networkDropdownRef = useRef(null)
+  const location = useLocation()
+  const isAppRoute = location.pathname === '/app' || location.pathname === '/'
+  const isAboutRoute = location.pathname === '/about'
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -47,26 +51,22 @@ function NavBar({
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        <div className="navbar-brand">
+        <Link to="/" className="navbar-brand" style={{ textDecoration: 'none' }}>
           <img src="/logo.png" alt="StackFi Logo" className="navbar-logo" />
           <h2>StackFi</h2>
           <span className="beta-badge" > Testnet Beta </span>
-        </div>
+        </Link>
         
         <div className="navbar-menu">
           <div className="navbar-links">
-            <button 
-              className={`navbar-link ${currentPage === 'home' ? 'active' : ''}`}
-              onClick={() => onNavigate('home')}
-            >
-              App
-            </button>
-            <button 
-              className={`navbar-link ${currentPage === 'about' ? 'active' : ''}`}
-              onClick={() => onNavigate('about')}
-            >
-              About
-            </button>
+            <Link 
+              to="/app"
+              className={`navbar-link ${isAppRoute ? 'active' : ''}`}
+            >App</Link>
+            <Link 
+              to="/about"
+              className={`navbar-link ${isAboutRoute ? 'active' : ''}`}
+            >About</Link>
           </div>
           
           <div className="navbar-actions">
@@ -174,24 +174,16 @@ function NavBar({
       
       {isMenuOpen && (
         <div className="navbar-mobile">
-          <button 
-            className={`navbar-link ${currentPage === 'home' ? 'active' : ''}`}
-            onClick={() => {
-              onNavigate('home')
-              setIsMenuOpen(false)
-            }}
-          >
-            App
-          </button>
-          <button 
-            className={`navbar-link ${currentPage === 'about' ? 'active' : ''}`}
-            onClick={() => {
-              onNavigate('about')
-              setIsMenuOpen(false)
-            }}
-          >
-            About
-          </button>
+          <Link 
+            to="/app"
+            className={`navbar-link ${isAppRoute ? 'active' : ''}`}
+            onClick={() => setIsMenuOpen(false)}
+          >App</Link>
+          <Link 
+            to="/about"
+            className={`navbar-link ${isAboutRoute ? 'active' : ''}`}
+            onClick={() => setIsMenuOpen(false)}
+          >About</Link>
           {account ? (
             <div className="mobile-wallet-info">
               <div className="mobile-account">

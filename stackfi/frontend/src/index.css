@@ -23,7 +23,9 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
 }
+
 .container { max-width: 920px; margin: 25px auto; padding: 0 16px; }
 .title { 
   font-size: 40px; 
