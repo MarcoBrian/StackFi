@@ -54,3 +54,22 @@ StackFi addresses this by bringing DCA on-chain with security, transparency, and
 
 ---
 
+# Start Developing and running locally 
+
+**Start a local Anvil node**
+
+`anvil --fork-url mainnet --chain-id 31337 --block-time 1`
+
+**Deploy Vault Contract**
+
+`forge script script/DeployVaultFork.s.sol:DeployVaultFork --rpc-url http://127.0.0.1:8545 --broadcast`
+
+**Provide some test USDC to local wallet**
+
+`forge script script/SeedBySwap.s.sol:SeedBySwap --rpc-url local --broadcast -vv`
+
+**Check DCA Plan is Created** 
+
+`forge script script/CheckPlan.s.sol:CheckPlan --rpc-url http://127.0.0.1:8545`
+
+`forge script script/SkipTimeUpdateFeed.s.sol:SkipTimeUpdateFeed --rpc-url local --broadcast -vv`

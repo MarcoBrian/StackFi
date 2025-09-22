@@ -9,8 +9,10 @@ import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.so
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ISwapRouter02Minimal as ISwapRouter02} from "src/interfaces/ISwapRouter02Minimal.sol";
 
-contract StackFiVault is Ownable , ReentrancyGuard, AutomationCompatibleInterface {
+
+contract StackFiVaultBaseSepolia is Ownable , ReentrancyGuard, AutomationCompatibleInterface {
 
   event PlanCancelled(address indexed user);
   event Deposited(address indexed user, address indexed token, uint256 amount); 
@@ -63,10 +65,9 @@ contract StackFiVault is Ownable , ReentrancyGuard, AutomationCompatibleInterfac
     bool    active;
   }
 
-  ISwapRouter public uniV3Router;
+  ISwapRouter02 public uniV3Router;
   
-  // Uniswap V3 fee tier (500 = 0.05%) default fee tier
-  uint24 public constant defaultFee = 500;
+  uint24 public constant defaultFee = 3000;
 
   mapping(address => AssetConfig) public assets;    // token => config
   mapping(address => mapping(address => uint256)) public balances; // user => token => amount
@@ -80,7 +81,7 @@ contract StackFiVault is Ownable , ReentrancyGuard, AutomationCompatibleInterfac
 
 // Uniswap V3 Router 
 function setRouter(address router) external onlyOwner {
-    uniV3Router = ISwapRouter(router);
+    uniV3Router = ISwapRouter02(router);
 }
 
 function _swapUniV3(address tokenIn, address tokenOut, uint256 amountIn, uint256 minOut)
@@ -90,12 +91,11 @@ function _swapUniV3(address tokenIn, address tokenOut, uint256 amountIn, uint256
     // OZ v5 has forceApprove; on OZ v4 use safeApprove(0) then safeApprove(amountIn)
     IERC20(tokenIn).forceApprove(address(uniV3Router), amountIn);
 
-    ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+    ISwapRouter02.ExactInputSingleParams memory params = ISwapRouter02.ExactInputSingleParams({
         tokenIn: tokenIn,
         tokenOut: tokenOut,
         fee: defaultFee,
         recipient: address(this),
-        deadline: block.timestamp,
         amountIn: amountIn,
         amountOutMinimum: minOut,
         sqrtPriceLimitX96: 0

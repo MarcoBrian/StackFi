@@ -11,6 +11,7 @@ import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IQuoterV2.sol";
 
+
 // 0.8-safe TickMath from v4
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 
@@ -49,8 +50,8 @@ contract UniswapLocalPair_Mocks is Test {
         mockUSDC = new MockERC20("Mock USDC", "mUSDC", 6);
         mockWETH = new MockERC20("Mock WETH", "mWETH", 18);
 
-        mockUSDC.mint(address(this), 5_000_000 * 1e6); // +5m USDC
-        mockWETH.mint(address(this), 1_000 ether);      // +1000 WETH
+        mockUSDC.mint(address(this), 50_000_000 * 1e6); // +5m USDC
+        mockWETH.mint(address(this), 10_000 ether);      // +1000 WETH
         mockUSDC.mint(user, 6000e6); 
 
         // 2) Sort tokens for v3
@@ -78,9 +79,9 @@ contract UniswapLocalPair_Mocks is Test {
         int24 hi = center + 120; // two steps above
         require(lo < hi, "bad ticks");
 
-        // Roughly match 3000 ratio: 10 WETH ↔ 30,000 USDC
-        uint256 wethAmt = 100 ether;
-        uint256 usdcAmt = 300_000 * 1e6;
+        // Roughly match 3000 ratio: 1000 WETH ↔ 3000,000 USDC
+        uint256 wethAmt = 1000 ether;
+        uint256 usdcAmt = 3_000_000 * 1e6;
 
         uint256 amount0Desired = (token0 == address(mockWETH)) ? wethAmt : usdcAmt;
         uint256 amount1Desired = (token0 == address(mockWETH)) ? usdcAmt : wethAmt;
@@ -103,7 +104,12 @@ contract UniswapLocalPair_Mocks is Test {
                 deadline: block.timestamp + 3600
             });
 
-        INonfungiblePositionManager(NFPM).mint(mp);
+        (uint256 tokenId, uint128 liquidity, uint256 amt0, uint256 amt1) = INonfungiblePositionManager(NFPM).mint(mp);
+
+        console.log("tokenId:", tokenId);
+        console.log("liquidity:", liquidity);
+        console.log("amt0:", amt0);
+        console.log("amt1:", amt1);
     }
 
 

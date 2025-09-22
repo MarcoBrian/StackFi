@@ -1,0 +1,29 @@
+{
+  "stackfi/lib/chainlink-local": {
+    "rev": "3bb414fcadb06ec0e33f55d4ccea0ecf373c7475"
+  },
+  "stackfi/lib/openzeppelin-contracts": {
+    "rev": "8f8d61c7c8d6941d29d3bc0b8b519f1b64656e97"
+  },
+  "stackfi/lib/openzeppelin-contracts-upgradeable": {
+    "rev": "e725abddf1e01cf05ace496e950fc8e243cc7cab"
+  },
+  "stackfi/lib/permit2": {
+    "rev": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219"
+  },
+  "stackfi/lib/universal-router": {
+    "rev": "41183d6eb154f0ab0e74a0e911a5ef9ea51fc4bd"
+  },
+  "stackfi/lib/v3-core": {
+    "rev": "e3589b192d0be27e100cd0daaf6c97204fdb1899"
+  },
+  "stackfi/lib/v3-periphery": {
+    "rev": "80f26c86c57b8a5e4b913f42844d4c8bd274d058"
+  },
+  "stackfi/lib/v4-core": {
+    "rev": "e50237c43811bd9b526eff40f26772152a42daba"
+  },
+  "stackfi/lib/v4-periphery": {
+    "rev": "60cd93803ac2b7fa65fd6cd351fd5fd4cc8c9db5"
+  }
+}

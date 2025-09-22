@@ -105,11 +105,12 @@ contract StackFiVaultMockTest is Test {
         vm.startPrank(alice);
         vault.deposit(address(usdc), depositAmount);
 
-        // Create plan: buy 100 USDC worth of WETH every week, 1% slippage
+        // Create plan: buy 100 USDC worth of WETH every week, 1% slippage, 5 executions
         uint128 amountPerBuy = 100 * uint128(10 ** usdc.decimals());
         uint32  frequency    = 7 days;
         uint16  slippageBps  = 100; // 1%
-        vault.createPlan(address(usdc), address(weth), amountPerBuy, frequency, slippageBps);
+        uint16  totalExecutions = 5;
+        vault.createPlan(address(usdc), address(weth), amountPerBuy, frequency, slippageBps, totalExecutions);
         vm.stopPrank();
 
         // Initially not due
@@ -161,11 +162,12 @@ contract StackFiVaultMockTest is Test {
         vm.startPrank(alice);
         vault.deposit(address(REAL_USDC), depositAmount);
 
-        // Create plan: buy 100 USDC worth of WETH every week, 1% slippage
+        // Create plan: buy 100 USDC worth of WETH every week, 1% slippage, 3 executions
         uint128 amountPerBuy = 100e6;
         uint32  frequency    = 7 days;
         uint16  slippageBps  = 100; // 1%
-        vault.createPlan(REAL_USDC, REAL_WETH, amountPerBuy, frequency, slippageBps);
+        uint16  totalExecutions = 3;
+        vault.createPlan(REAL_USDC, REAL_WETH, amountPerBuy, frequency, slippageBps, totalExecutions);
         vm.stopPrank();
 
         // Initially not due
@@ -197,7 +199,7 @@ contract StackFiVaultMockTest is Test {
     function test_CancelPlan() public {
         vm.startPrank(alice);
         vault.deposit(address(usdc), 1_000 * 10 ** usdc.decimals());
-        vault.createPlan(address(usdc), address(weth), 100 * uint128(10 ** usdc.decimals()), 7 days, 50);
+        vault.createPlan(address(usdc), address(weth), 100 * uint128(10 ** usdc.decimals()), 7 days, 50, 10);
         vm.stopPrank();
 
         vm.prank(alice);
@@ -232,7 +234,7 @@ contract StackFiVaultMockTest is Test {
         // 3) User deposit & create plan
         vm.startPrank(alice);
         vault.deposit(address(usdc), 100e6); // 100 USDC
-        vault.createPlan(address(usdc), address(weth), uint128(100e6), 1 days, 50); // 0.5% slippage
+        vault.createPlan(address(usdc), address(weth), uint128(100e6), 1 days, 50, 1); // 0.5% slippage, 1 execution
         vm.stopPrank();
 
         // 4) Make due and execute
@@ -254,6 +256,95 @@ contract StackFiVaultMockTest is Test {
         // Oracle expectedOut at $2,000 ETH is 0.05 WETH; with 0.5% slippage → 0.04975 WETH
         uint256 minOut = (0.05e18 * (10_000 - 50)) / 10_000;
         assertEq(postWeth - preWeth, minOut, "mock pays amountOutMinimum exactly");
+    }
+
+    function test_ExecutionTracking_PlanCompletesAfterAllExecutions() public {
+        // Deploy router + set on vault
+        MockSwapRouter router = new MockSwapRouter();
+        vm.prank(vault.owner());
+        vault.setRouter(address(router));
+
+        // Fund router with tokenOut
+        weth.mint(address(router), 1_000 ether);
+
+        // Alice deposits and creates plan for 3 executions
+        vm.startPrank(alice);
+        vault.deposit(address(usdc), 1000e6); // 1000 USDC
+        vault.createPlan(address(usdc), address(weth), uint128(100e6), 1 days, 50, 3); // 3 executions
+        vm.stopPrank();
+
+        // Check initial plan state
+        (, , , , , , uint16 totalExecs, uint16 execCount, bool active) = vault.plans(alice);
+        assertEq(totalExecs, 3, "total executions should be 3");
+        assertEq(execCount, 0, "executed count should be 0");
+        assertTrue(active, "plan should be active");
+
+        // Execute first time
+        vm.warp(block.timestamp + 1 days + 1);
+        usdcUsdFeed.updateAnswer(1e8);
+        ethUsdFeed.updateAnswer(2000e8);
+        
+        assertTrue(vault.isDue(alice), "plan should be due for first execution");
+        vault.execute(alice);
+
+        (, , , , , , , execCount, active) = vault.plans(alice);
+        assertEq(execCount, 1, "executed count should be 1");
+        assertTrue(active, "plan should still be active");
+        
+        // Execute second time
+        vm.warp(block.timestamp + 1 days + 1);
+        usdcUsdFeed.updateAnswer(1e8);
+        ethUsdFeed.updateAnswer(2000e8);
+        vault.execute(alice);
+
+        (, , , , , , , execCount, active) = vault.plans(alice);
+        assertEq(execCount, 2, "executed count should be 2");
+        assertTrue(active, "plan should still be active");
+
+        // Execute third time (final execution)
+        vm.warp(block.timestamp + 1 days + 1);
+        usdcUsdFeed.updateAnswer(1e8);
+        ethUsdFeed.updateAnswer(2000e8);
+        vault.execute(alice);
+
+        (, , , , , , , execCount, active) = vault.plans(alice);
+        assertEq(execCount, 3, "executed count should be 3");
+        assertFalse(active, "plan should be completed and inactive");
+        assertFalse(vault.isDue(alice), "completed plan should not be due");
+
+        // Trying to execute again should fail
+        vm.warp(block.timestamp + 1 days + 1);
+        vm.expectRevert(bytes("not due"));
+        vault.execute(alice);
+    }
+
+    function test_ExecutionTracking_PlanNotDueAfterCompletion() public {
+        // Deploy router + set on vault
+        MockSwapRouter router = new MockSwapRouter();
+        vm.prank(vault.owner());
+        vault.setRouter(address(router));
+
+        // Fund router with tokenOut
+        weth.mint(address(router), 1_000 ether);
+
+        // Alice deposits and creates plan for 1 execution only
+        vm.startPrank(alice);
+        vault.deposit(address(usdc), 200e6); // 200 USDC
+        vault.createPlan(address(usdc), address(weth), uint128(100e6), 1 days, 50, 1); // 1 execution only
+        vm.stopPrank();
+
+        // Execute the single execution
+        vm.warp(block.timestamp + 1 days + 1);
+        usdcUsdFeed.updateAnswer(1e8);
+        ethUsdFeed.updateAnswer(2000e8);
+        
+        vault.execute(alice);
+
+        // Plan should be completed and not due
+        (, , , , , , , uint16 execCount, bool active) = vault.plans(alice);
+        assertEq(execCount, 1, "executed count should be 1");
+        assertFalse(active, "plan should be completed and inactive");
+        assertFalse(vault.isDue(alice), "completed plan should not be due");
     }
 
     // --- helpers (pure) to mirror on-chain math ---
