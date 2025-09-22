@@ -1,4 +1,8 @@
 import './About.css'
+import custodialIcon from '../assets/custodial.svg'
+import repeatIcon from '../assets/repeat.svg'
+import nodesIcon from '../assets/nodes.svg'
+import chartIcon from '../assets/chart.svg'
 
 function About() {
   return (
@@ -32,28 +36,28 @@ Today, they still rely on centralized exchanges to do so and do not have self-cu
             <div className="solution-grid">
               <div className="solution-item">
                 <div className="solution-icon">
-                  <img src="/src/assets/custodial.svg" alt="Custodial icon" style={{width: '48px', height: '48px'}} />
+                  <img src={custodialIcon} alt="Custodial icon" style={{width: '48px', height: '48px'}} />
                 </div>
                 <h3>Non-Custodial</h3>
                 <p>Users deposit USDC and configure recurring buys while maintaining full control of their assets</p>
               </div>
               <div className="solution-item">
                 <div className="solution-icon">
-                  <img src="/src/assets/repeat.svg" alt="Repeat icon" style={{width: '48px', height: '48px'}} />
+                  <img src={repeatIcon} alt="Repeat icon" style={{width: '48px', height: '48px'}} />
                 </div>
                 <h3>Automated Execution</h3>
                 <p>Smart contracts execute swaps via decentralized exchanges on your schedule</p>
               </div>
               <div className="solution-item">
                 <div className="solution-icon">
-                  <img src="/src/assets/nodes.svg" alt="Nodes icon" style={{width: '48px', height: '48px'}} />
+                  <img src={nodesIcon} alt="Nodes icon" style={{width: '48px', height: '48px'}} />
                 </div>
                 <h3>Oracle Protection</h3>
                 <p>Chainlink price feeds ensure fair pricing and protect against manipulation</p>
               </div>
               <div className="solution-item">
                 <div className="solution-icon">
-                  <img src="/src/assets/chart.svg" alt="Chart icon" style={{width: '48px', height: '48px'}} />
+                  <img src={chartIcon} alt="Chart icon" style={{width: '48px', height: '48px'}} />
                 </div>
                 <h3>Transparent Tracking</h3>
                 <p>Complete logging of cost basis and execution history on-chain</p>
