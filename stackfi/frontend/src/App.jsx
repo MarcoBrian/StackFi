@@ -8,8 +8,8 @@ import ethLogo from './assets/crypto-logo/ethereum-eth-logo.svg'
 import repeatIcon from './assets/repeat.svg'
 
 import { ADDRS, DECIMALS, CHAIN_ID_HEX, NETWORKS, CURRENT_NETWORK, assertContract } from './config/addresses';
-import { getVault, getErc20 } from './lib/contracts';
-import { toUnits, fromUnits } from './lib/units';
+import { getVault, getErc20 } from './utils/contracts';
+import { toUnits, fromUnits } from './utils/units';
 import { useWallet } from './hooks/useWallet';
 import { useToast } from './contexts/ToastContext';
 
