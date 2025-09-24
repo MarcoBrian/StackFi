@@ -20,6 +20,7 @@ function NavBar({
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false)
   const walletDropdownRef = useRef(null)
   const networkDropdownRef = useRef(null)
+  const showLocalNetworkOption = import.meta.env.VITE_SHOW_LOCAL === 'true'
   const location = useLocation()
   const isAppRoute = location.pathname === '/app' || location.pathname === '/'
   const isAboutRoute = location.pathname === '/about'
@@ -89,18 +90,20 @@ function NavBar({
                   </button>
                   {isNetworkDropdownOpen && (
                     <div className="network-dropdown-menu">
-                      <button 
-                        className="network-dropdown-item"
-                        onClick={() => handleNetworkSwitch('local')}
-                      >
-                        <div className="network-option">
-                          <div className="network-option-indicator local"></div>
-                          <div className="network-option-info">
-                            <span className="network-option-name">Local Hardhat</span>
-                            <span className="network-option-chain">Chain ID: 31337</span>
+                      {showLocalNetworkOption && (
+                        <button 
+                          className="network-dropdown-item"
+                          onClick={() => handleNetworkSwitch('local')}
+                        >
+                          <div className="network-option">
+                            <div className="network-option-indicator local"></div>
+                            <div className="network-option-info">
+                              <span className="network-option-name">Local Hardhat</span>
+                              <span className="network-option-chain">Chain ID: 31337</span>
+                            </div>
                           </div>
-                        </div>
-                      </button>
+                        </button>
+                      )}
                       <button 
                         className="network-dropdown-item"
                         onClick={() => handleNetworkSwitch('base-sepolia')}
@@ -193,15 +196,17 @@ function NavBar({
                 <div className={`network-indicator ${isCorrectNetwork ? 'connected' : 'disconnected'}`}></div>
                 <span>Current: {currentNetwork}</span>
               </div>
-              <button 
-                className="btn outline small mobile-network"
-                onClick={() => {
-                  handleNetworkSwitch('local')
-                  setIsMenuOpen(false)
-                }}
-              >
-                Switch to Local Hardhat
-              </button>
+              {showLocalNetworkOption && (
+                <button 
+                  className="btn outline small mobile-network"
+                  onClick={() => {
+                    handleNetworkSwitch('local')
+                    setIsMenuOpen(false)
+                  }}
+                >
+                  Switch to Local Hardhat
+                </button>
+              )}
               <button 
                 className="btn outline small mobile-network"
                 onClick={() => {
