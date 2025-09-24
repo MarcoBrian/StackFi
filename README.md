@@ -2,6 +2,9 @@
 
 StackFi is a non-custodial, oracle-secured, decentralized app that automates dollar-cost averaging (DCA) into crypto portfolios, safely and transparently on-chain.
 
+Test Live Demo : https://stackfi-dca.vercel.app
+
+![landing](stackfi/landing.png)
 
 ## Overview
 
@@ -104,6 +107,8 @@ StackFi addresses this by bringing DCA on-chain with security, transparency, and
 
 **Deploy Base Sepolia Pool**
 `forge script script/UniswapDeployPoolBaseSepolia.s.sol:UniswapDeployPoolBaseSepolia --rpc-url http://127.0.0.1:8545 --broadcast`
+
+In base sepolia, the liquidity pool values of the tokens can be quite janky, so it is best to build your own liquidity pools. 
 
 **Deploy Vault in Base Sepolia**
 `forge script script/DeployVaultBaseSepoliaFork.sol:DeployVaultBaseSepoliaFork --rpc-url http://127.0.0.1:8545 --broadcast`
