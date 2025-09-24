@@ -346,8 +346,8 @@ export const useWallet = (onDisconnectCallback) => {
       }
     }
 
-    // Don't auto-connect immediately - let user manually connect
-    // autoConnect()
+    // Auto-connect on mount so navigation between routes preserves connection
+    autoConnect()
 
     // Cleanup function
     return () => {

@@ -5,6 +5,7 @@ import About from './pages/About'
 import ActivePlan from './components/ActivePlan'
 import usdcLogo from './assets/crypto-logo/usd-coin-usdc-logo.svg'
 import ethLogo from './assets/crypto-logo/ethereum-eth-logo.svg'
+import uniLogo from './assets/crypto-logo/uniswap-uni-logo.svg'
 import repeatIcon from './assets/repeat.svg'
 
 import { ADDRS, DECIMALS, CHAIN_ID_HEX, NETWORKS, CURRENT_NETWORK, assertContract } from './config/addresses';
@@ -17,6 +18,7 @@ import { useToast } from './contexts/ToastContext';
 const TOKENS = {
     USDC: { symbol: 'USDC', decimals: DECIMALS.USDC, address: ADDRS.USDC, logo: usdcLogo },
     WETH: { symbol: 'WETH', decimals: DECIMALS.WETH, address: ADDRS.WETH, logo: ethLogo },
+    // UNI: { symbol: 'UNI', decimals: DECIMALS.UNI, address: ADDRS.UNI, logo: uniLogo },
 };
 
 const FREQ = {
