@@ -327,6 +327,58 @@ function App() {
     };
 
 
+  // Subscribe to on-chain events to keep UI in sync
+  useEffect(() => {
+    if (!account) return;
+
+    let vaultContract = null;
+    let isCancelled = false;
+
+    const setup = async () => {
+      try {
+        vaultContract = await getVault();
+
+        const handleForUser = (user) => {
+          if (isCancelled) return;
+          if (!user) return;
+          if (String(user).toLowerCase() !== String(account).toLowerCase()) return;
+          // Refresh lightweight; ignore failures
+          refreshState().catch(() => {});
+        };
+
+        // Plan lifecycle
+        vaultContract.on('PlanCreated', handleForUser);
+        vaultContract.on('PlanCancelled', handleForUser);
+        vaultContract.on('PlanCompleted', handleForUser);
+        // Executions and balance-affecting events
+        vaultContract.on('Executed', handleForUser);
+        vaultContract.on('Deposited', handleForUser);
+        vaultContract.on('Withdrawn', handleForUser);
+      } catch (err) {
+        console.error('Failed to setup vault event listeners', err);
+      }
+    };
+
+    setup();
+
+    return () => {
+      isCancelled = true;
+      if (vaultContract) {
+        try {
+          vaultContract.removeAllListeners?.('PlanCreated');
+          vaultContract.removeAllListeners?.('PlanCancelled');
+          vaultContract.removeAllListeners?.('PlanCompleted');
+          vaultContract.removeAllListeners?.('Executed');
+          vaultContract.removeAllListeners?.('Deposited');
+          vaultContract.removeAllListeners?.('Withdrawn');
+        } catch (err) {
+          console.warn('Cleanup listeners failed', err);
+        }
+      }
+    };
+  }, [account]);
+
+
     // Refresh when account / chain changes
     useEffect(() => {
       if (account && chainId) {
